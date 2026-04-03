@@ -8,10 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,12 +31,42 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen() {
+    var title by remember { mutableStateOf("") }
+    var subject by remember { mutableStateOf("") }
+    var difficulty by remember { mutableStateOf("") }
+    var urgency by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "StudyPartner")
+
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Task title") }
+        )
+
+        OutlinedTextField(
+            value = subject,
+            onValueChange = { subject = it },
+            label = { Text("Subject") }
+        )
+
+        OutlinedTextField(
+            value = difficulty,
+            onValueChange = { difficulty = it },
+            label = { Text("Difficulty (1-5)") }
+        )
+
+        OutlinedTextField(
+            value = urgency,
+            onValueChange = { urgency = it },
+            label = { Text("Urgency (1-5)") }
+        )
+
         Button(onClick = {}) {
             Text("Add Task")
         }
