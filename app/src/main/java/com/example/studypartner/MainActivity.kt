@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,7 +42,7 @@ fun HomeScreen() {
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = "StudyPartner")
@@ -87,6 +89,14 @@ fun HomeScreen() {
             }
         }) {
             Text("Add Task")
+        }
+
+        LazyColumn {
+            items(tasks) { task ->
+                Text(
+                    text = "${task.title} - ${task.subject} | D:${task.difficulty} U:${task.urgency}"
+                )
+            }
         }
     }
 }
