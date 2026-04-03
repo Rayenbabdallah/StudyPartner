@@ -36,6 +36,8 @@ fun HomeScreen() {
     var difficulty by remember { mutableStateOf("") }
     var urgency by remember { mutableStateOf("") }
 
+    var tasks by remember { mutableStateOf(listOf<StudyTask>()) }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -67,7 +69,23 @@ fun HomeScreen() {
             label = { Text("Urgency (1-5)") }
         )
 
-        Button(onClick = {}) {
+        Button(onClick = {
+            if (title.isNotBlank() && difficulty.isNotBlank() && urgency.isNotBlank()) {
+                val newTask = StudyTask(
+                    title = title,
+                    subject = subject,
+                    difficulty = difficulty.toInt(),
+                    urgency = urgency.toInt()
+                )
+
+                tasks = tasks + newTask
+
+                title = ""
+                subject = ""
+                difficulty = ""
+                urgency = ""
+            }
+        }) {
             Text("Add Task")
         }
     }
