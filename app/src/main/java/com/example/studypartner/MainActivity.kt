@@ -93,8 +93,11 @@ fun HomeScreen() {
 
         LazyColumn {
             items(tasks) { task ->
+
+                val priority = task.difficulty + task.urgency
+
                 Text(
-                    text = "${task.title} - ${task.subject} | D:${task.difficulty} U:${task.urgency}"
+                    text = "${task.title} - ${task.subject} | Priority: $priority"
                 )
             }
         }
