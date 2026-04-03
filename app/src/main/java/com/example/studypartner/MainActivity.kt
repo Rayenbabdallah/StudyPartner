@@ -96,8 +96,14 @@ fun HomeScreen() {
 
                 val priority = task.difficulty + task.urgency
 
+                val risk = if (task.difficulty >= 4 && task.urgency >= 4) {
+                    "High Risk"
+                } else {
+                    "Safe"
+                }
+
                 Text(
-                    text = "${task.title} - ${task.subject} | Priority: $priority"
+                    text = "${task.title} - ${task.subject} | Priority: $priority | $risk"
                 )
             }
         }
