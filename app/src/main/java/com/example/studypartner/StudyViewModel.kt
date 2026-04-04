@@ -1,17 +1,33 @@
 package com.example.studypartner
 
+import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
-class StudyViewModel : ViewModel() {
+class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
     var title by mutableStateOf("")
     var subject by mutableStateOf("")
     var difficulty by mutableStateOf("")
     var urgency by mutableStateOf("")
+
     var tasks by mutableStateOf(listOf<StudyTask>())
+        private set
+
+    private val db = AppDatabase.getDatabase(application)
+    private val dao = db.taskDao()
+
+    init {
+        viewModelScope.launch {
+            dao.getAllTasks().collect {
+                tasks = it
+            }
+        }
+    }
 
     fun addTask() {
         if (title.isNotBlank() && difficulty.isNotBlank() && urgency.isNotBlank()) {
@@ -23,7 +39,9 @@ class StudyViewModel : ViewModel() {
                 urgency = urgency.toInt()
             )
 
-            tasks = tasks + newTask
+            viewModelScope.launch {
+                dao.insertTask(newTask)
+            }
 
             title = ""
             subject = ""
