@@ -24,7 +24,7 @@ fun TaskListScreen(navController: NavController, viewModel: StudyViewModel) {
         }
 
         is TaskUiState.Success -> LazyColumn {
-            items(state.tasks) { task ->
+            items(viewModel.sortedTasks()) { task ->
                 Text(text = "${task.title} - ${task.subject} | Priority: ${task.priority()} | ${task.riskLabel()}")
             }
         }
