@@ -25,13 +25,13 @@ fun HomeScreen(navController: NavController, viewModel: StudyViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { navController.navigate("add") }) {
+        Button(onClick = { navController.navigate(Screen.Add.route) }) {
             Text("Add Task")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Button(onClick = { navController.navigate("list") }) {
+        Button(onClick = { navController.navigate(Screen.List.route) }) {
             Text("View Tasks")
         }
     }

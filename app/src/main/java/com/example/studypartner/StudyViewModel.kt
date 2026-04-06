@@ -18,6 +18,11 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     var tasks by mutableStateOf(listOf<StudyTask>())
         private set
 
+    private var isLoading by mutableStateOf(true)
+
+    val uiState: TaskUiState
+        get() = if (isLoading) TaskUiState.Loading else TaskUiState.Success(tasks)
+
     private val db = AppDatabase.getDatabase(application)
     private val dao = db.taskDao()
 
@@ -25,6 +30,7 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             dao.getAllTasks().collect {
                 tasks = it
+                isLoading = false
             }
         }
     }

@@ -51,7 +51,7 @@ fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
 
         Button(onClick = {
             viewModel.addTask()
-            navController.navigate("home")
+            navController.navigate(Screen.Home.route)
         }) {
             Text("Save Task")
         }
