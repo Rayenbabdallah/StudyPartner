@@ -1,71 +1,125 @@
 package com.example.studypartner
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    var showTitleError by remember { mutableStateOf(false) }
 
-        OutlinedTextField(
-            value = viewModel.title,
-            onValueChange = { viewModel.title = it },
-            label = { Text("Task title") }
-        )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("New Task") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        }
+    ) { padding ->
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
 
-        OutlinedTextField(
-            value = viewModel.subject,
-            onValueChange = { viewModel.subject = it },
-            label = { Text("Subject") }
-        )
+            OutlinedTextField(
+                value = viewModel.title,
+                onValueChange = { viewModel.title = it; showTitleError = false },
+                label = { Text("Task title") },
+                isError = showTitleError,
+                supportingText = if (showTitleError) ({ Text("Title is required") }) else null,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = viewModel.subject,
+                onValueChange = { viewModel.subject = it },
+                label = { Text("Subject") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        LevelPicker(
-            label = "Difficulty",
-            selected = viewModel.difficulty,
-            onSelect = { viewModel.difficulty = it }
-        )
+            OutlinedTextField(
+                value = viewModel.deadlineDays,
+                onValueChange = { viewModel.deadlineDays = it },
+                label = { Text("Days until deadline (optional)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        LevelPicker(
-            label = "Urgency",
-            selected = viewModel.urgency,
-            onSelect = { viewModel.urgency = it }
-        )
+            LevelPicker(
+                label = "Difficulty",
+                selected = viewModel.difficulty,
+                onSelect = { viewModel.difficulty = it }
+            )
 
-        Spacer(modifier = Modifier.height(24.dp))
+            LevelPicker(
+                label = "Urgency",
+                selected = viewModel.urgency,
+                onSelect = { viewModel.urgency = it }
+            )
 
-        Button(onClick = {
-            viewModel.addTask()
-            navController.navigate(Screen.Home.route)
-        }) {
-            Text("Save Task")
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    if (viewModel.title.isBlank()) {
+                        showTitleError = true
+                    } else {
+                        viewModel.addTask()
+                        navController.navigate(Screen.Home.route)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Save Task")
+            }
         }
     }
 }
 
 @Composable
 private fun LevelPicker(label: String, selected: Level, onSelect: (Level) -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge)
+    Column(
+        horizontalAlignment = Alignment.Start,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Level.entries.forEach { level ->
                 FilterChip(
                     selected = level == selected,

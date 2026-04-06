@@ -1,6 +1,7 @@
 package com.example.studypartner
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
@@ -17,4 +18,7 @@ interface StudyTaskDao {
 
     @Update
     suspend fun updateTask(task: StudyTask)
+
+    @Delete
+    suspend fun deleteTask(task: StudyTask)
 }

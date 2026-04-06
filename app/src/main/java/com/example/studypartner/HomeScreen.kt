@@ -2,6 +2,7 @@ package com.example.studypartner
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,13 +28,20 @@ fun HomeScreen(navController: NavController, viewModel: StudyViewModel) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("StudyPartner")
+        Text("StudyPartner", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("AI Advice: $advice")
+        Text("AI Advice: $advice", style = MaterialTheme.typography.bodyLarge)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Study load: ${viewModel.studyLoad()} pts",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = { navController.navigate(Screen.Add.route) }) {
             Text("Add Task")

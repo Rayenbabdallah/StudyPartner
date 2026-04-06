@@ -18,6 +18,7 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     var subject by mutableStateOf("")
     var difficulty by mutableStateOf(Level.LOW)
     var urgency by mutableStateOf(Level.LOW)
+    var deadlineDays by mutableStateOf("")
 
     private val repository = TaskRepository(
         AppDatabase.getDatabase(application).taskDao()
@@ -36,11 +37,16 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addTask() {
         if (title.isNotBlank()) {
+            val deadlineMillis = deadlineDays.toIntOrNull()?.let { days ->
+                System.currentTimeMillis() + days * 24L * 60 * 60 * 1000
+            }
+
             val newTask = StudyTask(
                 title = title,
                 subject = subject,
                 difficulty = difficulty.value,
-                urgency = urgency.value
+                urgency = urgency.value,
+                deadline = deadlineMillis
             )
 
             viewModelScope.launch { repository.insert(newTask) }
@@ -49,11 +55,16 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
             subject = ""
             difficulty = Level.LOW
             urgency = Level.LOW
+            deadlineDays = ""
         }
     }
 
     fun markAsUrgent(task: StudyTask) {
         viewModelScope.launch { repository.update(task.markAsUrgent()) }
+    }
+
+    fun deleteTask(task: StudyTask) {
+        viewModelScope.launch { repository.delete(task) }
     }
 
     fun getAdvice(): String = PriorityEngine.getAdvice(tasks)
