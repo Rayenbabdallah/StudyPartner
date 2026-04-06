@@ -13,3 +13,5 @@ fun StudyTask.riskLabel(): String = when {
 fun List<StudyTask>.topTask(): StudyTask? = maxByOrNull { it.priority() }
 
 fun List<StudyTask>.highRiskTasks(): List<StudyTask> = filter { it.isHighRisk() }
+
+fun StudyTask.markAsUrgent(): StudyTask = copy(urgency = Level.EXTREME.value)

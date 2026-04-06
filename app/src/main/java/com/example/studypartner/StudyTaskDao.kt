@@ -3,6 +3,7 @@ package com.example.studypartner
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -13,4 +14,7 @@ interface StudyTaskDao {
 
     @Insert
     suspend fun insertTask(task: StudyTask)
+
+    @Update
+    suspend fun updateTask(task: StudyTask)
 }

@@ -55,6 +55,12 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun markAsUrgent(task: StudyTask) {
+        viewModelScope.launch {
+            dao.updateTask(task.markAsUrgent())
+        }
+    }
+
     fun getAdvice(): String = PriorityEngine.getAdvice(tasks)
 
     fun sortedTasks(): List<StudyTask> = PriorityEngine.sortByPriority(tasks)
