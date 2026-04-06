@@ -23,12 +23,13 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: TaskUiState
         get() = if (isLoading) TaskUiState.Loading else TaskUiState.Success(tasks)
 
-    private val db = AppDatabase.getDatabase(application)
-    private val dao = db.taskDao()
+    private val repository = TaskRepository(
+        AppDatabase.getDatabase(application).taskDao()
+    )
 
     init {
         viewModelScope.launch {
-            dao.getAllTasks().collect {
+            repository.allTasks.collect {
                 tasks = it
                 isLoading = false
             }
@@ -44,9 +45,7 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
                 urgency = urgency.value
             )
 
-            viewModelScope.launch {
-                dao.insertTask(newTask)
-            }
+            viewModelScope.launch { repository.insert(newTask) }
 
             title = ""
             subject = ""
@@ -56,9 +55,7 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun markAsUrgent(task: StudyTask) {
-        viewModelScope.launch {
-            dao.updateTask(task.markAsUrgent())
-        }
+        viewModelScope.launch { repository.update(task.markAsUrgent()) }
     }
 
     fun getAdvice(): String = PriorityEngine.getAdvice(tasks)
