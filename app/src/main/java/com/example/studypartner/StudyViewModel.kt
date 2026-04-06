@@ -6,6 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class StudyViewModel(application: Application) : AndroidViewModel(application) {
@@ -15,26 +19,20 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     var difficulty by mutableStateOf(Level.LOW)
     var urgency by mutableStateOf(Level.LOW)
 
-    var tasks by mutableStateOf(listOf<StudyTask>())
-        private set
-
-    private var isLoading by mutableStateOf(true)
-
-    val uiState: TaskUiState
-        get() = if (isLoading) TaskUiState.Loading else TaskUiState.Success(tasks)
-
     private val repository = TaskRepository(
         AppDatabase.getDatabase(application).taskDao()
     )
 
-    init {
-        viewModelScope.launch {
-            repository.allTasks.collect {
-                tasks = it
-                isLoading = false
-            }
-        }
-    }
+    val uiState: StateFlow<TaskUiState> = repository.allTasks
+        .map { TaskUiState.Success(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TaskUiState.Loading
+        )
+
+    private val tasks: List<StudyTask>
+        get() = (uiState.value as? TaskUiState.Success)?.tasks ?: emptyList()
 
     fun addTask() {
         if (title.isNotBlank()) {
