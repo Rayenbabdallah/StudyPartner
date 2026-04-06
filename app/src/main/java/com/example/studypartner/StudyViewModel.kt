@@ -12,8 +12,8 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
     var title by mutableStateOf("")
     var subject by mutableStateOf("")
-    var difficulty by mutableStateOf("")
-    var urgency by mutableStateOf("")
+    var difficulty by mutableStateOf(Level.LOW)
+    var urgency by mutableStateOf(Level.LOW)
 
     var tasks by mutableStateOf(listOf<StudyTask>())
         private set
@@ -36,13 +36,12 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addTask() {
-        if (title.isNotBlank() && difficulty.isNotBlank() && urgency.isNotBlank()) {
-
+        if (title.isNotBlank()) {
             val newTask = StudyTask(
                 title = title,
                 subject = subject,
-                difficulty = difficulty.toInt(),
-                urgency = urgency.toInt()
+                difficulty = difficulty.value,
+                urgency = urgency.value
             )
 
             viewModelScope.launch {
@@ -51,8 +50,8 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
 
             title = ""
             subject = ""
-            difficulty = ""
-            urgency = ""
+            difficulty = Level.LOW
+            urgency = Level.LOW
         }
     }
 

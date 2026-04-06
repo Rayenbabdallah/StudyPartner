@@ -12,7 +12,9 @@ import androidx.navigation.NavController
 fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -31,29 +33,46 @@ fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
             label = { Text("Subject") }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = viewModel.difficulty,
-            onValueChange = { viewModel.difficulty = it },
-            label = { Text("Difficulty") }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = viewModel.urgency,
-            onValueChange = { viewModel.urgency = it },
-            label = { Text("Urgency") }
-        )
-
         Spacer(modifier = Modifier.height(16.dp))
+
+        LevelPicker(
+            label = "Difficulty",
+            selected = viewModel.difficulty,
+            onSelect = { viewModel.difficulty = it }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LevelPicker(
+            label = "Urgency",
+            selected = viewModel.urgency,
+            onSelect = { viewModel.urgency = it }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
             viewModel.addTask()
             navController.navigate(Screen.Home.route)
         }) {
             Text("Save Task")
+        }
+    }
+}
+
+@Composable
+private fun LevelPicker(label: String, selected: Level, onSelect: (Level) -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = label, style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Level.entries.forEach { level ->
+                FilterChip(
+                    selected = level == selected,
+                    onClick = { onSelect(level) },
+                    label = { Text(level.label) }
+                )
+            }
         }
     }
 }
