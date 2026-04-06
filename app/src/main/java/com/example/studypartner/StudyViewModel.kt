@@ -58,17 +58,13 @@ class StudyViewModel(application: Application) : AndroidViewModel(application) {
     fun getAdvice(): String {
         if (tasks.isEmpty()) return "Add tasks to get advice"
 
-        val highRiskTasks = tasks.filter { it.difficulty >= 4 && it.urgency >= 4 }
+        val highRisk = tasks.highRiskTasks()
 
-        return if (highRiskTasks.isNotEmpty()) {
-            "You have high-risk tasks. Focus on them first"
+        return if (highRisk.isNotEmpty()) {
+            "You have ${highRisk.size} high-risk task(s). Focus on them first"
         } else {
-            val topTask = tasks.maxByOrNull { it.difficulty + it.urgency }
-            if (topTask != null) {
-                "Start with ${topTask.subject}"
-            } else {
-                "Good balance"
-            }
+            tasks.topTask()?.let { "Start with ${it.subject} (priority ${it.priority()})" }
+                ?: "Good balance"
         }
     }
 }

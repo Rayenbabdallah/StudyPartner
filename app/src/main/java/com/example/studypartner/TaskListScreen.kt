@@ -25,9 +25,7 @@ fun TaskListScreen(navController: NavController, viewModel: StudyViewModel) {
 
         is TaskUiState.Success -> LazyColumn {
             items(state.tasks) { task ->
-                val priority = task.difficulty + task.urgency
-                val risk = if (task.difficulty >= 4 && task.urgency >= 4) "High Risk" else "Safe"
-                Text(text = "${task.title} - ${task.subject} | Priority: $priority | $risk")
+                Text(text = "${task.title} - ${task.subject} | Priority: ${task.priority()} | ${task.riskLabel()}")
             }
         }
 
