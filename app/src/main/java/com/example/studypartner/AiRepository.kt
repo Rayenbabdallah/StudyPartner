@@ -2,6 +2,9 @@ package com.example.studypartner
 
 import android.content.Context
 import android.util.Log
+import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
+import aws.sdk.kotlin.services.bedrockruntime.BedrockRuntimeClient
+import aws.sdk.kotlin.services.bedrockruntime.model.InvokeModelRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -12,19 +15,17 @@ import java.net.URL
 
 object AiRepository {
 
-    private const val TAG      = "AiRepository"
-    private const val BASE_URL = "https://openrouter.ai/api/v1"
-    private const val MODEL    = "meta-llama/llama-3.2-3b-instruct:free"
-    private const val TIMEOUT  = 30_000
+    private const val TAG          = "AiRepository"
+    private const val BASE_URL     = "https://openrouter.ai/api/v1"
+    private const val MODEL        = "google/gemma-2-9b-it:free"
+    private const val TIMEOUT      = 30_000
+    private const val NOVA_MODEL_ID = "amazon.nova-lite-v1:0"
 
     suspend fun getAdvice(tasks: List<StudyTask>, context: Context): Result<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            val openRouterResult = runCatching {
                 val apiKey = UserPreferences.openRouterApiKey(context).first()
-                if (apiKey.isBlank()) {
-                    Log.w(TAG, "getAdvice: API Key is blank")
-                    return@runCatching "Please set your OpenRouter API Key in settings."
-                }
+                if (apiKey.isBlank()) throw Exception("API Key is blank")
 
                 val body = JSONObject().apply {
                     put("model", MODEL)
@@ -48,11 +49,15 @@ object AiRepository {
                 }
 
                 conn.outputStream.use { it.write(body.toByteArray()) }
+                
+                if (conn.responseCode == 429) {
+                    throw Exception("Rate limit reached (429)")
+                }
+
                 val response = if (conn.responseCode == 200) {
                     conn.inputStream.bufferedReader().use { it.readText() }
                 } else {
                     val error = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                    Log.e(TAG, "getAdvice: API Error ${conn.responseCode}: $error")
                     throw Exception("API Error ${conn.responseCode}: $error")
                 }
                 
@@ -62,26 +67,27 @@ object AiRepository {
                     .getJSONObject("message")
                     .getString("content")
                     .trim()
-            }.onFailure {
-                Log.e(TAG, "getAdvice: Failed to fetch AI advice", it)
             }
+
+            if (openRouterResult.isSuccess) return@withContext openRouterResult
+
+            Log.w(TAG, "OpenRouter failed, attempting AWS Bedrock fallback: ${openRouterResult.exceptionOrNull()?.message}")
+            getBedrockFallback(buildPrompt(tasks), context)
         }
 
     suspend fun getRescuePlan(panicTasks: List<StudyTask>, allTasks: List<StudyTask>, context: Context): Result<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            val prompt = buildRescuePlanPrompt(panicTasks, allTasks)
+            val openRouterResult = runCatching {
                 val apiKey = UserPreferences.openRouterApiKey(context).first()
-                if (apiKey.isBlank()) {
-                    Log.w(TAG, "getRescuePlan: API Key is blank")
-                    return@runCatching "Please set your OpenRouter API Key in settings."
-                }
+                if (apiKey.isBlank()) throw Exception("API Key is blank")
 
                 val body = JSONObject().apply {
                     put("model",  MODEL)
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply {
                             put("role", "user")
-                            put("content", buildRescuePlanPrompt(panicTasks, allTasks))
+                            put("content", prompt)
                         })
                     })
                 }.toString()
@@ -95,11 +101,15 @@ object AiRepository {
                     doOutput       = true
                 }
                 conn.outputStream.use { it.write(body.toByteArray()) }
+
+                if (conn.responseCode == 429) {
+                    throw Exception("Rate limit reached (429)")
+                }
+
                 val response = if (conn.responseCode == 200) {
                     conn.inputStream.bufferedReader().use { it.readText() }
                 } else {
                     val error = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                    Log.e(TAG, "getRescuePlan: API Error ${conn.responseCode}: $error")
                     throw Exception("API Error ${conn.responseCode}: $error")
                 }
 
@@ -109,26 +119,27 @@ object AiRepository {
                     .getJSONObject("message")
                     .getString("content")
                     .trim()
-            }.onFailure {
-                Log.e(TAG, "getRescuePlan: Failed to fetch AI rescue plan", it)
             }
+
+            if (openRouterResult.isSuccess) return@withContext openRouterResult
+
+            Log.w(TAG, "OpenRouter failed, attempting AWS Bedrock fallback: ${openRouterResult.exceptionOrNull()?.message}")
+            getBedrockFallback(prompt, context)
         }
 
     suspend fun getAssistantResponse(tasks: List<StudyTask>, question: String, context: Context): Result<String> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            val prompt = buildAssistantPrompt(tasks, question)
+            val openRouterResult = runCatching {
                 val apiKey = UserPreferences.openRouterApiKey(context).first()
-                if (apiKey.isBlank()) {
-                    Log.w(TAG, "getAssistantResponse: API Key is blank")
-                    return@runCatching "Please set your OpenRouter API Key in settings."
-                }
+                if (apiKey.isBlank()) throw Exception("API Key is blank")
 
                 val body = JSONObject().apply {
                     put("model",  MODEL)
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply {
                             put("role", "user")
-                            put("content", buildAssistantPrompt(tasks, question))
+                            put("content", prompt)
                         })
                     })
                 }.toString()
@@ -142,11 +153,15 @@ object AiRepository {
                     doOutput       = true
                 }
                 conn.outputStream.use { it.write(body.toByteArray()) }
+
+                if (conn.responseCode == 429) {
+                    throw Exception("Rate limit reached (429)")
+                }
+
                 val response = if (conn.responseCode == 200) {
                     conn.inputStream.bufferedReader().use { it.readText() }
                 } else {
                     val error = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                    Log.e(TAG, "getAssistantResponse: API Error ${conn.responseCode}: $error")
                     throw Exception("API Error ${conn.responseCode}: $error")
                 }
 
@@ -156,9 +171,68 @@ object AiRepository {
                     .getJSONObject("message")
                     .getString("content")
                     .trim()
-            }.onFailure {
-                Log.e(TAG, "getAssistantResponse: Failed to fetch AI assistant response", it)
             }
+
+            if (openRouterResult.isSuccess) return@withContext openRouterResult
+
+            Log.w(TAG, "OpenRouter failed, attempting AWS Bedrock fallback: ${openRouterResult.exceptionOrNull()?.message}")
+            getBedrockFallback(prompt, context)
+        }
+
+    private suspend fun getBedrockFallback(prompt: String, context: Context): Result<String> =
+        runCatching {
+            val accessKey = UserPreferences.awsAccessKey(context).first()
+            val secretKey = UserPreferences.awsSecretKey(context).first()
+            val regionStr = UserPreferences.awsRegion(context).first()
+
+            if (accessKey.isBlank() || secretKey.isBlank()) {
+                throw Exception("AWS credentials not configured")
+            }
+
+            val payload = JSONObject().apply {
+                put("messages", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("role", "user")
+                        put("content", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", prompt)
+                            })
+                        })
+                    })
+                })
+                put("inferenceConfig", JSONObject().apply {
+                    put("max_new_tokens", 500)
+                    put("temperature", 0.7)
+                })
+            }
+
+            val client = BedrockRuntimeClient {
+                region = regionStr
+                credentialsProvider = StaticCredentialsProvider {
+                    accessKeyId = accessKey
+                    secretAccessKey = secretKey
+                }
+            }
+
+            val request = InvokeModelRequest {
+                modelId = NOVA_MODEL_ID
+                body = payload.toString().toByteArray()
+                accept = "application/json"
+                contentType = "application/json"
+            }
+
+            val response = client.invokeModel(request)
+            val responseBody = response.body?.decodeToString() ?: throw Exception("Empty response body")
+
+            JSONObject(responseBody)
+                .getJSONObject("output")
+                .getJSONObject("message")
+                .getJSONArray("content")
+                .getJSONObject(0)
+                .getString("text")
+                .trim()
+        }.onFailure {
+            Log.e(TAG, "Bedrock fallback failed", it)
         }
 
     private fun buildRescuePlanPrompt(panicTasks: List<StudyTask>, allTasks: List<StudyTask>): String {
