@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base app theme — Compose takes over, XML only provides window chrome -->
+    <style name="Theme.StudyPartner" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/stitch_surface</item>
+        <item name="android:statusBarColor">@color/stitch_surface</item>
+        <item name="android:navigationBarColor">@color/stitch_surface</item>
+    </style>
 
-    <style name="Theme.StudyPartner" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Splash screen theme (core-splashscreen) -->
+    <style name="Theme.StudyPartner.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/stitch_surface</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/stitch_primary_container</item>
+        <item name="postSplashScreenTheme">@style/Theme.StudyPartner</item>
+    </style>
 </resources>
