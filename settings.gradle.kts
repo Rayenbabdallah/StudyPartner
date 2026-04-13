@@ -19,9 +19,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://aws-android-sdk-artifacts.s3.amazonaws.com/") }
     }
 }
 
 rootProject.name = "StudyPartner"
 include(":app")
- 
