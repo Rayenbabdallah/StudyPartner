@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Open book -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2C10.34,2 9,3.34 9,5V17C9,17.55 9.45,18 10,18H12V2Z" />
+    <path
+        android:fillColor="#C5CAE9"
+        android:pathData="M12,2C13.66,2 15,3.34 15,5V17C15,17.55 14.55,18 14,18H12V2Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4,5C4,4.45 4.45,4 5,4H9V18H5C4.45,18 4,17.55 4,17V5Z" />
+    <path
+        android:fillColor="#C5CAE9"
+        android:pathData="M15,4H19C19.55,4 20,4.45 20,5V17C20,17.55 19.55,18 19,18H15V4Z" />
+    <!-- Bookmark ribbon -->
+    <path
+        android:fillColor="#80CBC4"
+        android:pathData="M17,1V7L15.5,5.5L14,7V1H17Z" />
+</vector>
