@@ -37,6 +37,12 @@ android {
         }
     }
     buildFeatures { compose = true }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -66,6 +72,14 @@ dependencies {
     implementation("aws.sdk.kotlin:bedrockruntime:1.6.56")
 
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.13")
+    testImplementation("androidx.test:core-ktx:1.6.1")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("androidx.room:room-testing:2.7.0")
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
