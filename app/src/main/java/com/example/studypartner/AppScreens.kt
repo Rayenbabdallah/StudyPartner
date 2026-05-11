@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -148,8 +149,8 @@ fun LoginScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val emailVerified by UserPreferences.emailVerified(context).collectAsState(initial = false)
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
 
     AuthScreenShell(
         navController = navController,
@@ -198,9 +199,9 @@ fun LoginScreen(navController: NavController) {
 fun RegisterScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
 
     AuthScreenShell(
         navController = navController,
@@ -245,7 +246,7 @@ fun RegisterScreen(navController: NavController) {
 
 @Composable
 fun ForgotPasswordScreen(navController: NavController) {
-    var email by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
 
     AuthScreenShell(
         navController = navController,
@@ -1008,7 +1009,7 @@ fun CourseScopedScreen(
 @Composable
 fun AiGeneratedPlanScreen(navController: NavController, viewModel: StudyViewModel) {
     val tasks = viewModel.sortedTasks().filter { !it.isCompleted }
-    var prompt by remember { mutableStateOf("Build a realistic plan for the next 48 hours") }
+    var prompt by rememberSaveable { mutableStateOf("Build a realistic plan for the next 48 hours") }
 
     BaseFeatureScreen(
         navController = navController,
@@ -1122,8 +1123,8 @@ fun AiPromptsScreen(navController: NavController, viewModel: StudyViewModel) {
 
 @Composable
 fun RecoveryPlanScreen(navController: NavController, viewModel: StudyViewModel) {
-    var situation by remember { mutableStateOf("") }
-    var availableHours by remember { mutableStateOf("2") }
+    var situation by rememberSaveable { mutableStateOf("") }
+    var availableHours by rememberSaveable { mutableStateOf("2") }
     val rescueState by viewModel.rescuePlanState.collectAsState()
 
     BaseFeatureScreen(
@@ -1168,7 +1169,7 @@ fun RecoveryPlanScreen(navController: NavController, viewModel: StudyViewModel) 
 
 @Composable
 fun GlobalSearchScreen(navController: NavController, viewModel: StudyViewModel) {
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
     val state by viewModel.uiState.collectAsState()
     val tasks = (state as? TaskUiState.Success)?.tasks ?: emptyList()
     val courses by viewModel.allCourses.collectAsState()
@@ -1215,9 +1216,9 @@ fun FilterTasksScreen(navController: NavController, viewModel: StudyViewModel) {
     val state by viewModel.uiState.collectAsState()
     val tasks = (state as? TaskUiState.Success)?.tasks ?: emptyList()
 
-    var onlyHighRisk by remember { mutableStateOf(false) }
-    var onlyOverdue by remember { mutableStateOf(false) }
-    var onlyCompleted by remember { mutableStateOf(false) }
+    var onlyHighRisk by rememberSaveable { mutableStateOf(false) }
+    var onlyOverdue by rememberSaveable { mutableStateOf(false) }
+    var onlyCompleted by rememberSaveable { mutableStateOf(false) }
 
     val filtered = tasks.filter { task ->
         (!onlyHighRisk || task.isHighRisk()) &&
@@ -1263,13 +1264,13 @@ fun StudySessionFormScreen(
     val sessions by viewModel.allStudySessions.collectAsState()
     val existingSession = existingSessionId?.let { id -> sessions.find { it.id == id } }
 
-    var name by remember { mutableStateOf(defaultName) }
-    var duration by remember { mutableStateOf(defaultMinutes) }
-    var breakEvery by remember { mutableStateOf("25") }
-    var breakLength by remember { mutableStateOf("5") }
-    var selectedTaskId by remember { mutableStateOf(initialTaskId) }
-    var selectedCourseId by remember { mutableStateOf(initialCourseId) }
-    var suggestionReason by remember { mutableStateOf("Tap AI Suggest to generate recommended focus and break pacing.") }
+    var name by rememberSaveable { mutableStateOf(defaultName) }
+    var duration by rememberSaveable { mutableStateOf(defaultMinutes) }
+    var breakEvery by rememberSaveable { mutableStateOf("25") }
+    var breakLength by rememberSaveable { mutableStateOf("5") }
+    var selectedTaskId by rememberSaveable { mutableStateOf(initialTaskId) }
+    var selectedCourseId by rememberSaveable { mutableStateOf(initialCourseId) }
+    var suggestionReason by rememberSaveable { mutableStateOf("Tap AI Suggest to generate recommended focus and break pacing.") }
 
     val selectedTask = selectedTaskId?.let { id -> tasks.find { it.id == id } }
     val selectedCourse = selectedCourseId?.let { id -> courses.find { it.id == id } }
@@ -1971,7 +1972,7 @@ fun OfflineModeBannerScreen(navController: NavController) {
 
 @Composable
 fun DataConflictResolutionScreen(navController: NavController) {
-    var resolution by remember { mutableStateOf("") }
+    var resolution by rememberSaveable { mutableStateOf("") }
 
     BaseFeatureScreen(
         navController = navController,
@@ -2011,7 +2012,7 @@ fun AiTaskBreakdownScreen(
     taskId: Int
 ) {
     val task = viewModel.getTaskById(taskId)
-    var instruction by remember { mutableStateOf("Break this task into actionable subtasks") }
+    var instruction by rememberSaveable { mutableStateOf("Break this task into actionable subtasks") }
     var generatedSteps by remember(taskId) {
         mutableStateOf(
             listOf(
@@ -2204,7 +2205,7 @@ fun GenericPlaceholderScreen(
     links: List<ScreenLink> = emptyList(),
     outerPadding: PaddingValues = PaddingValues()
 ) {
-    var quickInput by remember { mutableStateOf("") }
+    var quickInput by rememberSaveable { mutableStateOf("") }
 
     BaseFeatureScreen(
         navController = navController,

@@ -13,3 +13,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Editor / agent local state
+.claude/
+.idea/
+.vscode/
+
+# Scratch notes (not part of the project)
+app/addFeature
+app/description

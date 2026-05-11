@@ -23,6 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,27 +39,30 @@ fun RiskInsightsScreen(navController: NavController, viewModel: StudyViewModel) 
     val uiState by viewModel.uiState.collectAsState()
     val courses by viewModel.allCourses.collectAsState()
     val tasks   = (uiState as? TaskUiState.Success)?.tasks ?: emptyList()
-    val active  = tasks.activeTasks()
+    val active  = remember(tasks) { tasks.activeTasks() }
 
-    val overdue       = active.overdueTasks()
-    val critical      = active.criticalTasks()
-    val courseRisks   = courses.map { course ->
-        val score = viewModel.courseRiskScore(course)
-        Triple(course, score, tasks.filter { it.courseId == course.id })
-    }.sortedByDescending { it.second }
-    val uncategorised = active.filter { it.courseId == null }
+    val overdue       = remember(active) { active.overdueTasks() }
+    val critical      = remember(active) { active.criticalTasks() }
+    val courseRisks   = remember(courses, tasks) {
+        courses.map { course ->
+            val score = viewModel.courseRiskScore(course)
+            Triple(course, score, tasks.filter { it.courseId == course.id })
+        }.sortedByDescending { it.second }
+    }
+    val uncategorised = remember(active) { active.filter { it.courseId == null } }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Risk Insights") },
+                title = { Text("Risk Insights", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
@@ -60,12 +71,50 @@ fun RiskInsightsScreen(navController: NavController, viewModel: StudyViewModel) 
 
         LazyColumn(
             contentPadding = PaddingValues(
-                start  = 16.dp, end = 16.dp,
-                top    = padding.calculateTopPadding() + 8.dp,
-                bottom = padding.calculateBottomPadding() + 16.dp
+                start  = Dimens.ScreenPadding,
+                end    = Dimens.ScreenPadding,
+                top    = padding.calculateTopPadding() + Dimens.SpaceXs,
+                bottom = padding.calculateBottomPadding() + Dimens.SpaceLg
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
         ) {
+
+            // Hero
+            item {
+                Column(modifier = Modifier.padding(top = Dimens.SpaceSm)) {
+                    Text(
+                        "AT RISK",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Dimens.SpaceXs))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text       = "${critical.size}",
+                            fontSize   = 72.sp,
+                            lineHeight = 76.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color      = if (critical.isNotEmpty()) MaterialTheme.colorScheme.error
+                                         else LimeCheck
+                        )
+                        Spacer(Modifier.width(Dimens.SpaceMd))
+                        Column(modifier = Modifier.padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "critical",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "${overdue.size} overdue · ${active.size} active",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
 
             if (overdue.isNotEmpty() || critical.isNotEmpty()) {
                 item { AlertBanner(overdue = overdue.size, critical = critical.size) }
@@ -76,24 +125,12 @@ fun RiskInsightsScreen(navController: NavController, viewModel: StudyViewModel) 
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                 ) {
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.CourseRiskBreakdown.route) },
-                        label = { Text("Course Risk") }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.DeadlineRiskDetails.route) },
-                        label = { Text("Deadlines") }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.OverloadAnalysis.route) },
-                        label = { Text("Overload") }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.StudyReadiness.route) },
-                        label = { Text("Readiness") }
-                    )
+                    RiskNavPill("Course Risk", DeepOrange) { navController.navigate(Screen.CourseRiskBreakdown.route) }
+                    RiskNavPill("Deadlines",   OrangeCheck) { navController.navigate(Screen.DeadlineRiskDetails.route) }
+                    RiskNavPill("Overload",    BookmarkGold) { navController.navigate(Screen.OverloadAnalysis.route) }
+                    RiskNavPill("Readiness",   LimeCheck) { navController.navigate(Screen.StudyReadiness.route) }
                 }
             }
 
@@ -139,6 +176,24 @@ fun RiskInsightsScreen(navController: NavController, viewModel: StudyViewModel) 
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RiskNavPill(label: String, accent: Color, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(50)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(accent))
+            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }

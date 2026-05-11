@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.DeepOrange
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,13 +37,13 @@ fun AddCourseScreen(
     val courses by viewModel.allCourses.collectAsState()
     val existing = existingCourseId?.let { id -> courses.find { it.id == id } }
 
-    var title         by remember { mutableStateOf(existing?.title         ?: "") }
-    var instructor    by remember { mutableStateOf(existing?.instructor    ?: "") }
-    var creditWeight  by remember { mutableStateOf(existing?.creditWeight  ?: 0.5f) }
-    var selectedColor by remember { mutableStateOf(existing?.colorHex      ?: COURSE_COLOR_PALETTE.first()) }
-    var examMillis    by remember { mutableStateOf<Long?>(existing?.examDate) }
-    var showTitleErr  by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
+    var title         by rememberSaveable { mutableStateOf(existing?.title         ?: "") }
+    var instructor    by rememberSaveable { mutableStateOf(existing?.instructor    ?: "") }
+    var creditWeight  by rememberSaveable { mutableStateOf(existing?.creditWeight  ?: 0.5f) }
+    var selectedColor by rememberSaveable { mutableStateOf(existing?.colorHex      ?: COURSE_COLOR_PALETTE.first()) }
+    var examMillis    by rememberSaveable { mutableStateOf<Long?>(existing?.examDate) }
+    var showTitleErr  by rememberSaveable { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = existing?.examDate)
 
@@ -62,18 +65,19 @@ fun AddCourseScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (existing == null) "New Course" else "Edit Course") },
+                title = { Text(if (existing == null) "New course" else "Edit course", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         Column(
@@ -227,14 +231,19 @@ fun AddCourseScreen(
                         navController.popBackStack()
                     }
                 },
-                modifier       = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 14.dp)
+                modifier       = Modifier.fillMaxWidth().height(56.dp),
+                shape          = RoundedCornerShape(16.dp),
+                colors         = ButtonDefaults.buttonColors(
+                    containerColor = DeepOrange,
+                    contentColor   = Color.White
+                )
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    if (existing == null) "Save Course" else "Update Course",
-                    style = MaterialTheme.typography.labelLarge
+                    if (existing == null) "Save course" else "Update course",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

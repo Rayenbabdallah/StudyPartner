@@ -2,10 +2,15 @@ package com.example.studypartner
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -15,21 +20,47 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import com.example.studypartner.ui.theme.SoftGold
+import com.example.studypartner.ui.theme.WarmAmber
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +73,7 @@ fun HomeScreen(
     val ollamaState by viewModel.ollamaState.collectAsState()
     val appMode     by viewModel.appMode.collectAsState()
     val sessions    by viewModel.allStudySessions.collectAsState()
-    var panicBannerDismissed by remember { mutableStateOf(false) }
+    var panicBannerDismissed by rememberSaveable { mutableStateOf(false) }
 
     val localAdvice = when (state) {
         is TaskUiState.Loading -> "Analysing your tasks…"
@@ -50,39 +81,50 @@ fun HomeScreen(
         is TaskUiState.Error   -> (state as TaskUiState.Error).message
     }
     val tasks = (state as? TaskUiState.Success)?.tasks ?: emptyList()
-    val sortedActiveTasks = viewModel.sortedTasks().filter { !it.isCompleted }
-    val bestNextTask = sortedActiveTasks.firstOrNull()
-    val todayTasks = tasks.filter { task ->
-        !task.isCompleted && (task.daysUntilDeadline() == 0)
+
+    val bestNextTask = remember(tasks) {
+        viewModel.sortedTasks().firstOrNull { !it.isCompleted }
     }
-    val upcomingDeadlines = tasks
-        .filter { !it.isCompleted }
-        .filter { task ->
-            val days = task.daysUntilDeadline()
-            days != null && days in 1..7
-        }
-        .sortedBy { it.deadline ?: Long.MAX_VALUE }
-        .take(5)
-    val highRiskCount = tasks.count { !it.isCompleted && it.isHighRisk() }
-    val overdueCount = tasks.count { !it.isCompleted && it.isOverdue() }
-    val completionRate = if (tasks.isNotEmpty()) tasks.count { it.isCompleted }.toFloat() / tasks.size else 0f
-    val avgProgress = if (tasks.isNotEmpty()) tasks.map { it.progress }.average().toInt() else 0
+    val todayTasks = remember(tasks) {
+        tasks.filter { !it.isCompleted && it.daysUntilDeadline() == 0 }
+    }
+    val upcomingDeadlines = remember(tasks) {
+        tasks.asSequence()
+            .filter { !it.isCompleted }
+            .filter { task ->
+                val days = task.daysUntilDeadline()
+                days != null && days in 1..14
+            }
+            .sortedBy { it.deadline ?: Long.MAX_VALUE }
+            .toList()
+    }
+    val highRiskCount = remember(tasks) { tasks.count { !it.isCompleted && it.isHighRisk() } }
+    val overdueCount  = remember(tasks) { tasks.count { !it.isCompleted && it.isOverdue() } }
+    val activeCount   = remember(tasks) { tasks.count { !it.isCompleted } }
+    val completionRate = remember(tasks) {
+        if (tasks.isNotEmpty()) tasks.count { it.isCompleted }.toFloat() / tasks.size else 0f
+    }
     val weekStartMillis = remember {
-        val cal = java.util.Calendar.getInstance().apply {
+        java.util.Calendar.getInstance().apply {
             firstDayOfWeek = java.util.Calendar.MONDAY
             set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
             set(java.util.Calendar.HOUR_OF_DAY, 0)
             set(java.util.Calendar.MINUTE, 0)
             set(java.util.Calendar.SECOND, 0)
             set(java.util.Calendar.MILLISECOND, 0)
-        }
-        cal.timeInMillis
+        }.timeInMillis
     }
-    val weeklyStudyMinutes = sessions
-        .filter { it.updatedAt >= weekStartMillis }
-        .sumOf { it.durationMinutes }
+    val weeklyStudyMinutes = remember(sessions, weekStartMillis) {
+        sessions.filter { it.updatedAt >= weekStartMillis }.sumOf { it.durationMinutes }
+    }
     val weeklyStudyHours = weeklyStudyMinutes / 60f
-    val studyGoalHours = 12f
+    val studyGoalHours   = 12f
+    val hoursProgress    = (weeklyStudyHours / studyGoalHours).coerceIn(0f, 1f)
+
+    val today = remember {
+        SimpleDateFormat("EEEE · MMM d", Locale.getDefault())
+            .format(Date()).uppercase()
+    }
 
     LaunchedEffect(tasks.size) {
         if (tasks.isNotEmpty() && ollamaState is AiState.Idle) {
@@ -90,45 +132,53 @@ fun HomeScreen(
         }
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // Staggered entrance animation
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
-                    Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DeepOrange),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Bookmark,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             "StudyPartner",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Your AI-powered study companion",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 },
                 actions = {
-                    Row {
-                        IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
-                            Icon(Icons.Default.Warning, contentDescription = "Notifications")
-                        }
-                        IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
-                        IconButton(onClick = { navController.navigate(Screen.AiAssistant.route) }) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant")
-                        }
+                    IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
+                        Icon(Icons.Default.NotificationsActive, contentDescription = "Notifications")
+                    }
+                    IconButton(onClick = { navController.navigate(Screen.AiAssistant.route) }) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI Assistant")
+                    }
+                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor            = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor    = MaterialTheme.colorScheme.surfaceContainer,
-                    titleContentColor         = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor    = MaterialTheme.colorScheme.primary
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
@@ -136,9 +186,9 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = { navController.navigate(Screen.Add.route) },
                 icon    = { Icon(Icons.Default.Add, contentDescription = null) },
-                text    = { Text("Add Task", style = MaterialTheme.typography.labelLarge) },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor   = MaterialTheme.colorScheme.onPrimaryContainer
+                text    = { Text("New task", style = MaterialTheme.typography.labelLarge) },
+                containerColor = DeepOrange,
+                contentColor   = Color.White
             )
         },
         contentWindowInsets = WindowInsets(0)
@@ -150,9 +200,10 @@ fun HomeScreen(
                 .padding(bottom = outerPadding.calculateBottomPadding())
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Dimens.ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
+            Spacer(Modifier.height(Dimens.SpaceXs))
 
             // ── Panic banner ──────────────────────────────────────────────────
             AnimatedVisibility(
@@ -160,508 +211,959 @@ fun HomeScreen(
                 enter   = expandVertically() + fadeIn(),
                 exit    = shrinkVertically() + fadeOut()
             ) {
-                PanicBanner(
+                PanicRibbon(
                     onOpen    = { navController.navigate(Screen.GhasretActivation.route) },
                     onDismiss = { panicBannerDismissed = true; viewModel.dismissPanic() }
                 )
             }
 
-            // ── Stats row ─────────────────────────────────────────────────────
-            StatsRow(
-                taskCount  = tasks.size,
-                atRisk     = tasks.highRiskTasks().size,
-                completed  = tasks.count { it.isCompleted },
-                sessionMin = viewModel.recommendedSession()
-            )
-
-            // ── AI Advice card ────────────────────────────────────────────────
-            
-
-            AdviceCard(
-                localAdvice = localAdvice,
-                ollamaState = ollamaState,
-                onRefresh   = { viewModel.fetchOllamaAdvice() }
-            )
-
-            Text(
-                "TODAY",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (todayTasks.isEmpty()) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Text(
-                        "No tasks due today. Use this block for proactive study.",
-                        modifier = Modifier.padding(14.dp)
-                    )
-                }
-            } else {
-                todayTasks.take(3).forEach { task ->
-                    ElevatedCard(onClick = { navController.navigate(Screen.TaskDetail.createRoute(task.id)) }) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(task.title, fontWeight = FontWeight.SemiBold)
-                            Text(task.deadlineLabel(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
+            // ── HERO ──────────────────────────────────────────────────────────
+            FadeIn(visible = visible, delayMs = 0) {
+                HeroBlock(
+                    dateLabel    = today,
+                    todayCount   = todayTasks.size,
+                    overdueCount = overdueCount,
+                    activeCount  = activeCount,
+                    onTodayClick = { navController.navigate(Screen.TodayTasks.route) }
+                )
             }
 
-            Text(
-                "BEST NEXT TASK",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (bestNextTask == null) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Text("All caught up. No active tasks.", modifier = Modifier.padding(14.dp))
-                }
-            } else {
-                Card(
-                    onClick = { navController.navigate(Screen.TaskDetail.createRoute(bestNextTask.id)) },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            // ── BENTO: Best Next | (Hours ring + AI Advice) ───────────────────
+            FadeIn(visible = visible, delayMs = 100) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
                 ) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(bestNextTask.title, fontWeight = FontWeight.Bold)
-                        Text(
-                            "Score ${String.format("%.0f", bestNextTask.score())}/100 - ${bestNextTask.deadlineLabel()}",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                    BestNextCard(
+                        task          = bestNextTask,
+                        onOpenDetail  = { id -> navController.navigate(Screen.TaskDetail.createRoute(id)) },
+                        onStartFocus  = { id -> navController.navigate(Screen.Focus.createRoute(id)) },
+                        modifier      = Modifier.weight(1.15f).fillMaxHeight()
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
+                    ) {
+                        StudyRingCard(
+                            hours      = weeklyStudyHours,
+                            goal       = studyGoalHours,
+                            progress   = hoursProgress,
+                            onClick    = { navController.navigate(Screen.FullWeeklySummary.route) },
+                            modifier   = Modifier.fillMaxWidth().weight(1f)
                         )
-                        TextButton(onClick = { navController.navigate(Screen.Focus.createRoute(bestNextTask.id)) }) {
-                            Text("Start Focus")
+                        CompletionPill(
+                            rate     = completionRate,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            // ── DEADLINE TIMELINE ─────────────────────────────────────────────
+            FadeIn(visible = visible, delayMs = 180) {
+                SectionEyebrow("UPCOMING", trailing = "View all") {
+                    navController.navigate(Screen.UpcomingTasks.route)
+                }
+            }
+            FadeIn(visible = visible, delayMs = 220) {
+                if (upcomingDeadlines.isEmpty() && todayTasks.isEmpty()) {
+                    PaperEmptyCard("No deadlines in the next two weeks. Use the calm.")
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
+                    ) {
+                        if (todayTasks.isNotEmpty()) {
+                            DeadlineChip(
+                                day       = "TODAY",
+                                count     = todayTasks.size,
+                                title     = todayTasks.first().title,
+                                accent    = DeepOrange,
+                                isUrgent  = true,
+                                onClick   = { navController.navigate(Screen.TaskDetail.createRoute(todayTasks.first().id)) }
+                            )
+                        }
+                        upcomingDeadlines.take(8).forEach { task ->
+                            val days = task.daysUntilDeadline() ?: 0
+                            val accent = when {
+                                days <= 1 -> DeepOrange
+                                days <= 3 -> OrangeCheck
+                                days <= 7 -> WarmAmber
+                                else      -> BookmarkGold
+                            }
+                            DeadlineChip(
+                                day      = dayLabel(task.deadline),
+                                count    = 1,
+                                title    = task.title,
+                                accent   = accent,
+                                isUrgent = days <= 1,
+                                onClick  = { navController.navigate(Screen.TaskDetail.createRoute(task.id)) }
+                            )
                         }
                     }
                 }
             }
 
-            Text(
-                "RISK ALERTS",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            ElevatedCard(onClick = { navController.navigate(Screen.FullRiskAlerts.route) }) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("$highRiskCount high-risk task(s)", fontWeight = FontWeight.SemiBold)
-                    Text("$overdueCount overdue task(s)", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Open full risk alerts", color = MaterialTheme.colorScheme.primary)
-                }
+            // ── RISK STRIP ────────────────────────────────────────────────────
+            FadeIn(visible = visible, delayMs = 280) {
+                RiskStrip(
+                    high    = highRiskCount,
+                    overdue = overdueCount,
+                    onClick = { navController.navigate(Screen.RiskInsights.route) }
+                )
             }
 
-            Text(
-                "UPCOMING DEADLINES",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (upcomingDeadlines.isEmpty()) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                    Text("No deadlines in the next 7 days.", modifier = Modifier.padding(14.dp))
-                }
-            } else {
-                upcomingDeadlines.forEach { task ->
-                    ElevatedCard(onClick = { navController.navigate(Screen.TaskDetail.createRoute(task.id)) }) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(task.title, modifier = Modifier.weight(1f))
-                            Text(task.deadlineLabel(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+            // ── AI ADVICE ─────────────────────────────────────────────────────
+            FadeIn(visible = visible, delayMs = 340) {
+                AiAdviceCard(
+                    localAdvice = localAdvice,
+                    ollamaState = ollamaState,
+                    onRefresh   = { viewModel.fetchOllamaAdvice() },
+                    onOpen      = { navController.navigate(Screen.AiAssistant.route) }
+                )
+            }
+
+            // ── QUICK ACTIONS BENTO ───────────────────────────────────────────
+            FadeIn(visible = visible, delayMs = 400) {
+                SectionEyebrow("EXPLORE")
+            }
+            FadeIn(visible = visible, delayMs = 440) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        BookmarkActionCard(
+                            icon       = Icons.Default.Insights,
+                            label      = "Risk\nInsights",
+                            ribbon     = DeepOrange,
+                            background = MaterialTheme.colorScheme.errorContainer,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.RiskInsights.route) }
+                        )
+                        BookmarkActionCard(
+                            icon       = Icons.Default.DateRange,
+                            label      = "Weekly\nReview",
+                            ribbon     = LimeCheck,
+                            background = MaterialTheme.colorScheme.tertiaryContainer,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.WeeklyReview.route) }
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        BookmarkActionCard(
+                            icon       = Icons.Default.BarChart,
+                            label      = "Analytics",
+                            ribbon     = BookmarkGold,
+                            background = MaterialTheme.colorScheme.primaryContainer,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.Stats.route) }
+                        )
+                        BookmarkActionCard(
+                            icon       = Icons.Default.Timer,
+                            label      = "Planner",
+                            ribbon     = OrangeCheck,
+                            background = MaterialTheme.colorScheme.secondaryContainer,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.Planner.route) }
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)) {
+                        BookmarkActionCard(
+                            icon       = Icons.Default.NotificationsActive,
+                            label      = "Alerts",
+                            ribbon     = WarmAmber,
+                            background = MaterialTheme.colorScheme.surfaceContainer,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.Notifications.route) }
+                        )
+                        BookmarkActionCard(
+                            icon       = Icons.Default.ViewAgenda,
+                            label      = "Dashboard",
+                            ribbon     = SoftGold,
+                            background = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier   = Modifier.weight(1f),
+                            onClick    = { navController.navigate(Screen.DashboardDetails.route) }
+                        )
                     }
                 }
             }
 
+            Spacer(Modifier.height(96.dp))
+        }
+    }
+}
+
+// ─── HERO BLOCK ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun HeroBlock(
+    dateLabel: String,
+    todayCount: Int,
+    overdueCount: Int,
+    activeCount: Int,
+    onTodayClick: () -> Unit
+) {
+    val animatedToday by animateIntAsState(
+        targetValue = todayCount,
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label = "todayCount"
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onTodayClick() }
+            .padding(vertical = Dimens.SpaceSm)
+    ) {
+        Text(
+            text  = dateLabel,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(Dimens.SpaceXs))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom
+        ) {
             Text(
-                "WEEKLY SUMMARY",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text       = animatedToday.toString(),
+                fontSize   = 88.sp,
+                lineHeight = 92.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color      = MaterialTheme.colorScheme.onSurface,
+                modifier   = Modifier.alignByBaseline()
             )
-            Card(
-                onClick = { navController.navigate(Screen.FullWeeklySummary.route) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+            Spacer(Modifier.width(Dimens.SpaceMd))
+            Column(
+                modifier = Modifier.alignByBaseline().padding(bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "Completion ${(completionRate * 100).toInt()}% - Avg Progress $avgProgress%",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    LinearProgressIndicator(
-                        progress = { completionRate.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(8.dp)
-                    )
-                }
+                Text(
+                    text  = if (todayCount == 1) "task due" else "tasks due",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text  = "today",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = DeepOrange,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
-
-            Text(
-                "STUDY HOURS TRACKER",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        }
+        Spacer(Modifier.height(Dimens.SpaceMd))
+        Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+            HeroPill(
+                icon  = Icons.Default.Bolt,
+                value = "$activeCount",
+                label = "active",
+                tint  = DeepOrange
             )
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        "${String.format("%.1f", weeklyStudyHours)}h / ${String.format("%.0f", studyGoalHours)}h this week",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    LinearProgressIndicator(
-                        progress = { (weeklyStudyHours / studyGoalHours).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth().height(8.dp)
-                    )
-                }
-            }
-// ── Quick actions ─────────────────────────────────────────────────
-            Text(
-                "QUICK ACTIONS",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard(
-                    icon    = Icons.Default.Warning,
-                    label   = "Risk Insights",
-                    onClick = { navController.navigate(Screen.RiskInsights.route) },
-                    modifier = Modifier.weight(1f),
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor   = MaterialTheme.colorScheme.onErrorContainer
-                )
-                QuickActionCard(
-                    icon    = Icons.Default.DateRange,
-                    label   = "Weekly Review",
-                    onClick = { navController.navigate(Screen.WeeklyReview.route) },
-                    modifier = Modifier.weight(1f),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor   = MaterialTheme.colorScheme.onTertiaryContainer
+            if (overdueCount > 0) {
+                HeroPill(
+                    icon  = Icons.Default.LocalFireDepartment,
+                    value = "$overdueCount",
+                    label = "overdue",
+                    tint  = MaterialTheme.colorScheme.error
                 )
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard(
-                    icon = Icons.Default.DateRange,
-                    label = "Planner",
-                    onClick = { navController.navigate(Screen.Planner.route) },
-                    modifier = Modifier.weight(1f)
-                )
-                QuickActionCard(
-                    icon = Icons.Default.Warning,
-                    label = "Alerts",
-                    onClick = { navController.navigate(Screen.Notifications.route) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard(
-                    icon = Icons.Default.BarChart,
-                    label = "Analytics",
-                    onClick = { navController.navigate(Screen.Stats.route) },
-                    modifier = Modifier.weight(1f)
-                )
-                QuickActionCard(
-                    icon = Icons.Default.ViewAgenda,
-                    label = "Dashboard Details",
-                    onClick = { navController.navigate(Screen.DashboardDetails.route) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(80.dp)) // FAB clearance
         }
     }
 }
 
 @Composable
-private fun StatsRow(taskCount: Int, atRisk: Int, completed: Int, sessionMin: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+private fun HeroPill(icon: ImageVector, value: String, label: String, tint: Color) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceContainer
     ) {
-        StatTile(
-            value    = taskCount.toString(),
-            label    = "Total",
-            modifier = Modifier.weight(1f)
-        )
-        StatTile(
-            value    = completed.toString(),
-            label    = "Done",
-            color    = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.weight(1f)
-        )
-        StatTile(
-            value    = atRisk.toString(),
-            label    = "At Risk",
-            color    = if (atRisk > 0) MaterialTheme.colorScheme.error
-                       else MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.weight(1f)
-        )
-        StatTile(
-            value    = if (sessionMin > 0) "${sessionMin}m" else "—",
-            label    = "Session",
-            color    = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.weight(1f)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
+// ─── BENTO: Best Next ────────────────────────────────────────────────────────
+
 @Composable
-private fun StatTile(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primary
+private fun BestNextCard(
+    task: StudyTask?,
+    onOpenDetail: (Int) -> Unit,
+    onStartFocus: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
-        modifier  = modifier,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        shape     = RoundedCornerShape(16.dp)
+    Surface(
+        modifier = modifier,
+        color    = MaterialTheme.colorScheme.primaryContainer,
+        shape    = RoundedCornerShape(24.dp),
+        tonalElevation = 0.dp
+    ) {
+        if (task == null) {
+            Column(
+                modifier = Modifier.padding(Dimens.CardPadding),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+            ) {
+                Text(
+                    "ALL CLEAR",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+                Text(
+                    "No active tasks",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(Dimens.CardPadding).fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(DeepOrange)
+                    )
+                    Text(
+                        "NEXT UP",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 3
+                )
+                Spacer(Modifier.weight(1f, fill = false))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RingProgress(
+                        progress = (task.score().toFloat() / 100f).coerceIn(0f, 1f),
+                        size = 56.dp,
+                        strokeWidth = 6.dp,
+                        color = DeepOrange,
+                        trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "${task.score().toInt()}",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = task.deadlineLabel(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "score / 100",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+                Spacer(Modifier.height(Dimens.SpaceXs))
+                Button(
+                    onClick = { onStartFocus(task.id) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DeepOrange,
+                        contentColor   = Color.White
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Start focus", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                }
+                TextButton(
+                    onClick = { onOpenDetail(task.id) },
+                    modifier = Modifier.align(Alignment.End),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        "Details →",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─── BENTO: Study hours ring ─────────────────────────────────────────────────
+
+@Composable
+private fun StudyRingCard(
+    hours: Float,
+    goal: Float,
+    progress: Float,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clickable { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainer,
+        shape    = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            modifier = Modifier.padding(Dimens.SpaceMd).fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text  = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text  = label,
+                "THIS WEEK",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
-    }
-}
-
-@Composable
-private fun QuickActionCard(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.primaryContainer,
-    contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onPrimaryContainer
-) {
-    Card(
-        onClick = onClick,
-        modifier = modifier,
-        shape    = RoundedCornerShape(16.dp),
-        colors   = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 18.dp, horizontal = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Surface(
-                color    = contentColor.copy(alpha = 0.12f),
-                shape    = CircleShape,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector        = icon,
-                        contentDescription = null,
-                        tint               = contentColor,
-                        modifier           = Modifier.size(20.dp)
-                    )
-                }
-            }
-            Text(
-                text  = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = contentColor,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
-
-@Composable
-private fun PanicBanner(onOpen: () -> Unit, onDismiss: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        shape     = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.Warning, contentDescription = null,
-                    tint     = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "Survival Mode Active",
-                    style    = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color    = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Dismiss",
-                        tint     = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.size(18.dp))
-                }
-            }
-            Text(
-                "You have critical tasks due very soon. Open Survival Mode for your rescue plan.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-            )
-            FilledTonalButton(
-                onClick = onOpen,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor   = MaterialTheme.colorScheme.onError
-                )
-            ) {
-                Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Open Survival Mode", style = MaterialTheme.typography.labelLarge)
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdviceCard(
-    localAdvice: String,
-    ollamaState: AiState,
-    onRefresh: () -> Unit
-) {
-    Card(
-        modifier  = Modifier.fillMaxWidth().animateContentSize(),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape     = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    color    = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
-                    shape    = CircleShape,
-                    modifier = Modifier.size(36.dp)
+                RingProgress(
+                    progress    = progress,
+                    size        = 84.dp,
+                    strokeWidth = 9.dp,
+                    color       = LimeCheck,
+                    trackColor  = MaterialTheme.colorScheme.surfaceContainerHighest
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint     = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(18.dp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text       = String.format(Locale.getDefault(), "%.1f", hours),
+                            fontSize   = 22.sp,
+                            lineHeight = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color      = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text  = "/ ${goal.toInt()}h",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletionPill(rate: Float, modifier: Modifier = Modifier) {
+    val animated by animateFloatAsState(
+        targetValue   = rate,
+        animationSpec = tween(900),
+        label         = "rate"
+    )
+    Surface(
+        modifier = modifier,
+        color    = MaterialTheme.colorScheme.tertiaryContainer,
+        shape    = RoundedCornerShape(20.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(Dimens.SpaceMd),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    "${(animated * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Text(
+                    "done",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                )
+            }
+            LinearProgressIndicator(
+                progress   = { animated },
+                modifier   = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                color      = LimeCheck,
+                trackColor = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.12f)
+            )
+        }
+    }
+}
+
+// ─── DEADLINE CHIP ───────────────────────────────────────────────────────────
+
+@Composable
+private fun DeadlineChip(
+    day: String,
+    count: Int,
+    title: String,
+    accent: Color,
+    isUrgent: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .width(160.dp)
+            .clickable { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(18.dp),
+        border   = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(accent)
+                )
+                Text(
+                    text  = day,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isUrgent) accent else MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Text(
+                text  = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2
+            )
+            if (count > 1) {
+                Text(
+                    text  = "+ ${count - 1} more",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ─── RISK STRIP ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun RiskStrip(high: Int, overdue: Int, onClick: () -> Unit) {
+    val empty = high == 0 && overdue == 0
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        color    = if (empty) MaterialTheme.colorScheme.tertiaryContainer
+                   else MaterialTheme.colorScheme.errorContainer,
+        shape    = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.CardPadding, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (empty) Icons.Default.AutoAwesome else Icons.Default.Warning,
+                contentDescription = null,
+                tint = if (empty) MaterialTheme.colorScheme.onTertiaryContainer
+                       else MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.width(Dimens.SpaceSm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (empty) "No risk alerts"
+                           else "$high high-risk · $overdue overdue",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (empty) MaterialTheme.colorScheme.onTertiaryContainer
+                            else MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    text = if (empty) "Keep the streak going."
+                           else "Tap to triage in Risk Insights.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (empty) MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                            else MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                )
+            }
+            Text(
+                "→",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (empty) MaterialTheme.colorScheme.onTertiaryContainer
+                        else MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+// ─── AI ADVICE CARD ──────────────────────────────────────────────────────────
+
+@Composable
+private fun AiAdviceCard(
+    localAdvice: String,
+    ollamaState: AiState,
+    onRefresh: () -> Unit,
+    onOpen: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().animateContentSize(),
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(20.dp),
+        border   = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(Dimens.CardPadding)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(BookmarkGold),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color(0xFF3D2400),
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
                 Spacer(Modifier.width(10.dp))
                 Text(
                     text = when (ollamaState) {
-                        is AiState.Success -> "AI Advice · OpenRouter"
-                        is AiState.Loading -> "Thinking…"
-                        else                   -> "Study Advice"
+                        is AiState.Success -> "AI · OpenRouter"
+                        is AiState.Loading -> "AI thinking…"
+                        else                   -> "Today's advice"
                     },
-                    style      = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier   = Modifier.weight(1f)
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
                 IconButton(
-                    onClick  = onRefresh,
-                    enabled  = ollamaState !is AiState.Loading,
-                    modifier = Modifier.size(36.dp)
+                    onClick = onRefresh,
+                    enabled = ollamaState !is AiState.Loading,
+                    modifier = Modifier.size(32.dp)
                 ) {
                     if (ollamaState is AiState.Loading) {
                         CircularProgressIndicator(
-                            modifier    = Modifier.size(18.dp),
+                            modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color       = MaterialTheme.colorScheme.secondary
+                            color = DeepOrange
                         )
                     } else {
                         Icon(
-                            Icons.Default.Refresh, contentDescription = "Refresh",
-                            tint     = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(18.dp)
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             }
-
-            Spacer(Modifier.height(12.dp))
-
+            Spacer(Modifier.height(Dimens.SpaceMd))
             when (ollamaState) {
-                is AiState.Loading -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ShimmerBox(Modifier.fillMaxWidth(0.9f), height = 16.dp)
-                        ShimmerBox(Modifier.fillMaxWidth(0.7f), height = 16.dp)
-                        ShimmerBox(Modifier.fillMaxWidth(0.8f), height = 16.dp)
-                    }
+                is AiState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ShimmerBox(Modifier.fillMaxWidth(0.9f), height = 14.dp)
+                    ShimmerBox(Modifier.fillMaxWidth(0.7f), height = 14.dp)
+                    ShimmerBox(Modifier.fillMaxWidth(0.85f), height = 14.dp)
                 }
                 is AiState.Success -> Text(
-                    text  = ollamaState.response,
+                    text = ollamaState.response,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                is AiState.Failure -> {
-                    Text(
-                        text  = localAdvice,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "OpenRouter error: ${ollamaState.message} · showing local advice",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
-                    )
-                }
-                is AiState.Unavailable -> {
-                    Text(
-                        text  = localAdvice,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "OpenRouter not reachable · showing local advice",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
-                    )
-                }
                 else -> Text(
-                    text  = localAdvice,
+                    text = localAdvice,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Spacer(Modifier.height(Dimens.SpaceSm))
+            TextButton(
+                onClick = onOpen,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    "Ask the assistant →",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = DeepOrange,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
+    }
+}
+
+// ─── BOOKMARK ACTION CARD ────────────────────────────────────────────────────
+
+@Composable
+private fun BookmarkActionCard(
+    icon: ImageVector,
+    label: String,
+    ribbon: Color,
+    background: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .height(120.dp)
+            .clickable { onClick() },
+        color    = background,
+        shape    = RoundedCornerShape(18.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Bookmark ribbon — top-right
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 0.dp, end = 14.dp)
+                    .width(10.dp)
+                    .height(22.dp)
+                    .background(ribbon, shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp))
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+// ─── PANIC RIBBON ────────────────────────────────────────────────────────────
+
+@Composable
+private fun PanicRibbon(onOpen: () -> Unit, onDismiss: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color    = MaterialTheme.colorScheme.errorContainer,
+        shape    = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(Dimens.CardPadding),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.LocalFireDepartment,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(Modifier.width(Dimens.SpaceSm))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Survival mode active",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    "Tap for your rescue plan.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
+                )
+            }
+            FilledTonalButton(
+                onClick = onOpen,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor   = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Open", style = MaterialTheme.typography.labelMedium) }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun SectionEyebrow(label: String, trailing: String? = null, onTrailingClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text  = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(1f))
+        if (trailing != null && onTrailingClick != null) {
+            TextButton(
+                onClick = onTrailingClick,
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    "$trailing →",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = DeepOrange,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaperEmptyCard(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color    = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape    = RoundedCornerShape(16.dp),
+        border   = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        Text(
+            text  = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(Dimens.CardPadding)
+        )
+    }
+}
+
+@Composable
+fun RingProgress(
+    progress: Float,
+    size: Dp,
+    strokeWidth: Dp,
+    color: Color,
+    trackColor: Color,
+    centerContent: @Composable BoxScope.() -> Unit = {}
+) {
+    val animated by animateFloatAsState(
+        targetValue   = progress.coerceIn(0f, 1f),
+        animationSpec = tween(900, easing = FastOutSlowInEasing),
+        label         = "ring"
+    )
+    Box(
+        modifier = Modifier.size(size),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val sw = strokeWidth.toPx()
+            val arcSize = Size(this.size.width - sw, this.size.height - sw)
+            val topLeft = Offset(sw / 2, sw / 2)
+            drawArc(
+                color      = trackColor,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter  = false,
+                style      = Stroke(width = sw, cap = StrokeCap.Round),
+                size       = arcSize,
+                topLeft    = topLeft
+            )
+            drawArc(
+                color      = color,
+                startAngle = -90f,
+                sweepAngle = 360f * animated,
+                useCenter  = false,
+                style      = Stroke(width = sw, cap = StrokeCap.Round),
+                size       = arcSize,
+                topLeft    = topLeft
+            )
+        }
+        centerContent()
+    }
+}
+
+@Composable
+private fun FadeIn(visible: Boolean, delayMs: Int, content: @Composable () -> Unit) {
+    val alpha by animateFloatAsState(
+        targetValue   = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 500, delayMillis = delayMs, easing = FastOutSlowInEasing),
+        label         = "fadeIn-$delayMs"
+    )
+    val offsetY by animateFloatAsState(
+        targetValue   = if (visible) 0f else 16f,
+        animationSpec = tween(durationMillis = 500, delayMillis = delayMs, easing = FastOutSlowInEasing),
+        label         = "slideUp-$delayMs"
+    )
+    Box(
+        modifier = Modifier
+            .alpha(alpha)
+            .offset(y = offsetY.dp)
+    ) { content() }
+}
+
+private fun dayLabel(deadline: Long?): String {
+    if (deadline == null) return "—"
+    val now = System.currentTimeMillis()
+    val deltaDays = ((deadline - now) / (1000L * 60 * 60 * 24)).toInt()
+    return when {
+        deltaDays <= 0 -> "TODAY"
+        deltaDays == 1 -> "TOMORROW"
+        deltaDays < 7  -> SimpleDateFormat("EEE", Locale.getDefault())
+                            .format(Date(deadline)).uppercase()
+        else            -> SimpleDateFormat("MMM d", Locale.getDefault())
+                            .format(Date(deadline)).uppercase()
     }
 }

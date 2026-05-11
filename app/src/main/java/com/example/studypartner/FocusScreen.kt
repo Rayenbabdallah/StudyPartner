@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +29,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
 import kotlinx.coroutines.delay
 
 private const val DEFAULT_FOCUS_SECONDS = 25 * 60
@@ -39,13 +43,13 @@ fun FocusScreen(navController: NavController, viewModel: StudyViewModel, taskId:
     val strings  = AppStrings.get(LocalTunisianMode.current)
     val mvw      = task?.let { viewModel.minimumViableWork(it) } ?: ""
 
-    var totalSeconds by remember { mutableIntStateOf(DEFAULT_FOCUS_SECONDS) }
-    var secondsLeft  by remember { mutableIntStateOf(totalSeconds) }
-    var running      by remember { mutableStateOf(false) }
-    var finished     by remember { mutableStateOf(false) }
+    var totalSeconds by rememberSaveable { mutableIntStateOf(DEFAULT_FOCUS_SECONDS) }
+    var secondsLeft  by rememberSaveable { mutableIntStateOf(totalSeconds) }
+    var running      by rememberSaveable { mutableStateOf(false) }
+    var finished     by rememberSaveable { mutableStateOf(false) }
 
     val motivations     = listOf(strings.focus1, strings.focus2, strings.focus3)
-    var motivationIndex by remember { mutableIntStateOf(0) }
+    var motivationIndex by rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(running, secondsLeft) {
         if (running && secondsLeft > 0) {
@@ -67,9 +71,9 @@ fun FocusScreen(navController: NavController, viewModel: StudyViewModel, taskId:
 
     val timerColor by animateColorAsState(
         targetValue = when {
-            finished        -> MaterialTheme.colorScheme.secondary
-            progress > 0.5f -> MaterialTheme.colorScheme.primary
-            progress > 0.2f -> MaterialTheme.colorScheme.tertiary
+            finished        -> LimeCheck
+            progress > 0.5f -> DeepOrange
+            progress > 0.2f -> OrangeCheck
             else            -> MaterialTheme.colorScheme.error
         },
         animationSpec = tween(600),
@@ -236,34 +240,29 @@ fun FocusScreen(navController: NavController, viewModel: StudyViewModel, taskId:
                 Spacer(Modifier.height(24.dp))
             }
 
-            // ── Massive timer ─────────────────────────────────────────────────
-            AnimatedContent(
-                targetState   = "%02d:%02d".format(minutes, seconds),
-                transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
-                label         = "timer"
-            ) { time ->
-                Text(
-                    text      = time,
-                    fontSize  = 80.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color     = timerColor,
-                    letterSpacing = (-2).sp,
-                    lineHeight  = 80.sp
-                )
+            // ── Ring timer ────────────────────────────────────────────────────
+            RingProgress(
+                progress    = progress,
+                size        = 280.dp,
+                strokeWidth = 14.dp,
+                color       = timerColor,
+                trackColor  = MaterialTheme.colorScheme.surfaceContainerHighest
+            ) {
+                AnimatedContent(
+                    targetState   = "%02d:%02d".format(minutes, seconds),
+                    transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(120)) },
+                    label         = "timer"
+                ) { time ->
+                    Text(
+                        text          = time,
+                        fontSize      = 64.sp,
+                        fontWeight    = FontWeight.ExtraBold,
+                        color         = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-2).sp,
+                        lineHeight    = 64.sp
+                    )
+                }
             }
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Thin progress bar ─────────────────────────────────────────────
-            LinearProgressIndicator(
-                progress   = { progress },
-                modifier   = Modifier
-                    .fillMaxWidth(0.75f)
-                    .height(4.dp)
-                    .clip(CircleShape),
-                color      = timerColor,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-            )
 
             Spacer(Modifier.height(24.dp))
 
@@ -321,12 +320,19 @@ fun FocusScreen(navController: NavController, viewModel: StudyViewModel, taskId:
                     shape  = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text     = "💡 $mvw",
-                        modifier = Modifier.padding(12.dp),
-                        style    = MaterialTheme.typography.bodySmall,
-                        color    = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = OrangeCheck,
+                            modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                        )
+                        Text(
+                            text  = mvw,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -393,8 +399,8 @@ fun FocusScreen(navController: NavController, viewModel: StudyViewModel, taskId:
                         .height(54.dp),
                     shape          = RoundedCornerShape(14.dp),
                     colors         = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor   = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = if (running) LimeCheck else DeepOrange,
+                        contentColor   = if (running) Color(0xFF1A2C00) else Color.White
                     )
                 ) {
                     Icon(

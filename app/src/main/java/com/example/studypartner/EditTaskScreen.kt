@@ -1,6 +1,7 @@
 package com.example.studypartner
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -8,11 +9,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
+import com.example.studypartner.ui.theme.DeepOrange
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,18 +28,18 @@ fun EditTaskScreen(navController: NavController, viewModel: StudyViewModel, task
     }
 
     val courses        by viewModel.allCourses.collectAsState()
-    var title          by remember { mutableStateOf(task.title) }
-    var subject        by remember { mutableStateOf(task.subject) }
+    var title          by rememberSaveable { mutableStateOf(task.title) }
+    var subject        by rememberSaveable { mutableStateOf(task.subject) }
     var selectedCourse by remember { mutableStateOf(courses.find { it.id == task.courseId }) }
     var difficulty     by remember { mutableStateOf(Level.fromValue(task.difficulty)) }
     var urgency        by remember { mutableStateOf(Level.fromValue(task.urgency)) }
-    var deadlineMillis by remember { mutableStateOf<Long?>(task.deadline) }
+    var deadlineMillis by rememberSaveable { mutableStateOf<Long?>(task.deadline) }
     var taskType       by remember { mutableStateOf(TaskType.fromName(task.type)) }
     var gradeImpact    by remember { mutableStateOf(GradeImpact.fromWeight(task.gradeWeight)) }
-    var progress       by remember { mutableIntStateOf(task.progress) }
-    var showTitleError by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var courseExpanded by remember { mutableStateOf(false) }
+    var progress       by rememberSaveable { mutableIntStateOf(task.progress) }
+    var showTitleError by rememberSaveable { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var courseExpanded by rememberSaveable { mutableStateOf(false) }
 
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = task.deadline)
 
@@ -57,18 +61,19 @@ fun EditTaskScreen(navController: NavController, viewModel: StudyViewModel, task
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit Task") },
+                title = { Text("Edit task", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         Column(
@@ -227,12 +232,16 @@ fun EditTaskScreen(navController: NavController, viewModel: StudyViewModel, task
                         navController.popBackStack()
                     }
                 },
-                modifier       = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 14.dp)
+                modifier       = Modifier.fillMaxWidth().height(56.dp),
+                shape          = RoundedCornerShape(16.dp),
+                colors         = ButtonDefaults.buttonColors(
+                    containerColor = DeepOrange,
+                    contentColor   = Color.White
+                )
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Update Task", style = MaterialTheme.typography.labelLarge)
+                Text("Update task", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
         }
     }

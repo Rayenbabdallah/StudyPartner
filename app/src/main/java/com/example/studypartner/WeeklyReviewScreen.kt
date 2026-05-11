@@ -12,12 +12,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -28,7 +36,7 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
     val tasks   = (uiState as? TaskUiState.Success)?.tasks ?: emptyList()
 
     // Compute current week window (Mon–Sun)
-    var weekOffset by remember { mutableIntStateOf(0) }
+    var weekOffset by rememberSaveable { mutableIntStateOf(0) }
     val calendar   = Calendar.getInstance().apply {
         firstDayOfWeek = Calendar.MONDAY
         set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
@@ -47,23 +55,27 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
 
     // Group tasks by day
     val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-    val dayTasks: List<Pair<String, List<StudyTask>>> = dayNames.mapIndexed { idx, day ->
-        val dayStart = weekStart + idx * 24L * 60 * 60 * 1000
-        val dayEnd   = dayStart + 24L * 60 * 60 * 1000
-        val dayNum   = Calendar.getInstance().apply {
-            timeInMillis = dayStart
-        }.get(Calendar.DAY_OF_MONTH)
-        "$day $dayNum" to tasks.filter { task ->
-            task.deadline != null &&
-            task.deadline >= dayStart &&
-            task.deadline < dayEnd
+    val dayTasks: List<Pair<String, List<StudyTask>>> = remember(tasks, weekStart) {
+        dayNames.mapIndexed { idx, day ->
+            val dayStart = weekStart + idx * 24L * 60 * 60 * 1000
+            val dayEnd   = dayStart + 24L * 60 * 60 * 1000
+            val dayNum   = Calendar.getInstance().apply {
+                timeInMillis = dayStart
+            }.get(Calendar.DAY_OF_MONTH)
+            "$day $dayNum" to tasks.filter { task ->
+                task.deadline != null &&
+                task.deadline >= dayStart &&
+                task.deadline < dayEnd
+            }
         }
     }
 
-    val completionRate = if (tasks.isNotEmpty())
-        tasks.count { it.isCompleted }.toFloat() / tasks.size else 0f
-    val avgProgress = if (tasks.isNotEmpty())
-        tasks.map { it.progress }.average().toInt() else 0
+    val completionRate = remember(tasks) {
+        if (tasks.isNotEmpty()) tasks.count { it.isCompleted }.toFloat() / tasks.size else 0f
+    }
+    val avgProgress = remember(tasks) {
+        if (tasks.isNotEmpty()) tasks.map { it.progress }.average().toInt() else 0
+    }
 
     Scaffold(
         topBar = {
@@ -79,7 +91,7 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         LazyColumn(
@@ -93,25 +105,27 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
 
             // ── Editorial header ──────────────────────────────────────────────
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXs)) {
                     Text(
-                        "ACADEMIC FLOW",
+                        "WEEKLY RHYTHM",
                         style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "Weekly\nRhythm.",
-                        style     = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color     = MaterialTheme.colorScheme.onSurface
+                        text       = "$avgProgress%",
+                        fontSize   = 64.sp,
+                        lineHeight = 68.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        "Optimize your cognitive load across the week. Balance your focus sessions for peak performance.",
+                        "Average progress this week",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(Dimens.SpaceLg))
             }
 
             // ── Week navigation ───────────────────────────────────────────────
@@ -173,8 +187,8 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
                                 .size(36.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (isToday) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceContainerLow
+                                    if (isToday) DeepOrange
+                                    else MaterialTheme.colorScheme.surfaceContainer
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
@@ -182,14 +196,15 @@ fun WeeklyReviewScreen(navController: NavController, viewModel: StudyViewModel) 
                                 parts.lastOrNull() ?: "",
                                 style     = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
-                                color     = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
+                                color     = if (isToday) Color.White
                                             else MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Text(
                             parts.firstOrNull() ?: "",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isToday) MaterialTheme.colorScheme.primary
+                            fontWeight = FontWeight.Bold,
+                            color = if (isToday) DeepOrange
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

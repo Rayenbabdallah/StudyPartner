@@ -24,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,11 +60,12 @@ fun GhasretLeklebScreen(navController: NavController, viewModel: StudyViewModel)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor    = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         // Background urgency blobs

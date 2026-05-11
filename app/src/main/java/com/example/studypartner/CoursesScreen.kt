@@ -1,6 +1,8 @@
 package com.example.studypartner
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,7 +24,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -41,21 +49,17 @@ fun CoursesScreen(
     val fabExpanded by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 } }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Courses") },
+                title = { Text("Courses", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                actions = {
-                    IconButton(onClick = { navController.navigate(Screen.AddCourse.route) }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Course")
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
@@ -65,9 +69,9 @@ fun CoursesScreen(
                 onClick        = { navController.navigate(Screen.AddCourse.route) },
                 expanded       = fabExpanded,
                 icon           = { Icon(Icons.Default.Add, contentDescription = null) },
-                text           = { Text("Add Course", style = MaterialTheme.typography.labelLarge) },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor   = MaterialTheme.colorScheme.onPrimaryContainer
+                text           = { Text("New course", style = MaterialTheme.typography.labelLarge) },
+                containerColor = DeepOrange,
+                contentColor   = Color.White
             )
         },
         contentWindowInsets = WindowInsets(0)
@@ -78,7 +82,7 @@ fun CoursesScreen(
                 icon        = Icons.Default.School,
                 title       = "No courses yet",
                 subtitle    = "Add your first course to link tasks and track your readiness per subject.",
-                actionLabel = "Add Course",
+                actionLabel = "Add course",
                 onAction    = { navController.navigate(Screen.AddCourse.route) },
                 modifier    = Modifier
                     .padding(padding)
@@ -88,25 +92,44 @@ fun CoursesScreen(
             LazyColumn(
                 state          = listState,
                 contentPadding = PaddingValues(
-                    start  = 16.dp, end = 16.dp,
-                    top    = padding.calculateTopPadding() + 8.dp,
+                    start  = Dimens.ScreenPadding,
+                    end    = Dimens.ScreenPadding,
+                    top    = padding.calculateTopPadding() + Dimens.SpaceXs,
                     bottom = outerPadding.calculateBottomPadding() + 96.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
             ) {
-                item {
-                    FilledTonalButton(
-                        onClick = { navController.navigate(Screen.AddCourse.route) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add Course")
+                item("hero") {
+                    Column(modifier = Modifier.padding(top = Dimens.SpaceSm, bottom = Dimens.SpaceXs)) {
+                        Text(
+                            "YOUR COURSES",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(Dimens.SpaceXs))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text       = "${courses.size}",
+                                fontSize   = 72.sp,
+                                lineHeight = 76.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color      = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.width(Dimens.SpaceMd))
+                            Text(
+                                text  = if (courses.size == 1) "course" else "courses",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                        }
                     }
                 }
                 items(courses, key = { it.id }) { course ->
                     val courseTasks = taskList.filter { it.courseId == course.id }
-                    CourseCard(
+                    PaperCourseCard(
                         course         = course,
                         activeCount    = courseTasks.count { !it.isCompleted },
                         riskScore      = viewModel.courseRiskScore(course),
@@ -122,7 +145,7 @@ fun CoursesScreen(
 }
 
 @Composable
-private fun CourseCard(
+private fun PaperCourseCard(
     course: Course,
     activeCount: Int,
     riskScore: Double,
@@ -133,104 +156,94 @@ private fun CourseCard(
 ) {
     val courseColor = runCatching {
         Color(android.graphics.Color.parseColor(course.colorHex))
-    }.getOrDefault(MaterialTheme.colorScheme.primary)
+    }.getOrDefault(DeepOrange)
 
-    val riskColors     = scoreToRiskColorSet(riskScore)
-    val readinessLabel = when {
-        readinessScore >= 70 -> "Ready"
-        readinessScore >= 40 -> "At Risk"
-        else                 -> "Danger"
+    val readinessAccent = when {
+        readinessScore >= 70 -> LimeCheck
+        readinessScore >= 40 -> OrangeCheck
+        else                 -> MaterialTheme.colorScheme.error
     }
-    val readinessColors = when {
-        readinessScore >= 70 -> riskColorSet("Safe")
-        readinessScore >= 40 -> riskColorSet("Moderate")
-        else                 -> riskColorSet("High Risk")
-    }
-    val riskLabel = when {
-        riskScore >= 60 -> "High Risk"
-        riskScore >= 40 -> "Moderate"
-        else            -> "Safe"
+    val riskAccent = when {
+        riskScore >= 60 -> MaterialTheme.colorScheme.error
+        riskScore >= 40 -> OrangeCheck
+        else            -> LimeCheck
     }
 
-    ElevatedCard(
-        onClick   = onClick,
-        modifier  = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        shape     = RoundedCornerShape(16.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(18.dp),
+        border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Color stripe
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(courseColor),
-                contentAlignment = Alignment.Center
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(courseColor)
+            )
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(Dimens.CardPadding),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text       = course.title.take(1).uppercase(),
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color      = Color.White
-                )
-            }
-
-            Spacer(Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    course.title,
-                    style      = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSurface
-                )
-                if (course.instructor.isNotBlank()) {
-                    Text(course.instructor,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Spacer(Modifier.height(6.dp))
-
-                // Metadata row
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("$activeCount active",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    course.examDate?.let { ms ->
-                        val dateStr = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ms))
-                        Text("Exam $dateStr",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-
-                Spacer(Modifier.height(6.dp))
-
-                // Badge row
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RiskBadge(riskLabel, riskColors.text)
-                    RiskBadge(
-                        "$readinessLabel · ${readinessScore}%",
-                        readinessColors.text
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(courseColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text       = course.title.take(1).uppercase(),
+                        style      = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = Color.White
                     )
                 }
-            }
-
-            Column {
-                IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit",
-                        tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Dimens.SpaceMd))
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        course.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (course.instructor.isNotBlank()) {
+                        Text(
+                            course.instructor,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        StatChip(value = "$activeCount", label = "active", accent = DeepOrange)
+                        StatChip(value = "$readinessScore%", label = "ready", accent = readinessAccent)
+                        course.examDate?.let { ms ->
+                            val dateStr = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(ms)).uppercase()
+                            Surface(color = BookmarkGold.copy(alpha = 0.18f), shape = RoundedCornerShape(6.dp)) {
+                                Text(
+                                    "EXAM $dateStr",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    }
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete",
-                        tint     = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp))
+                Column {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }
@@ -238,17 +251,27 @@ private fun CourseCard(
 }
 
 @Composable
-private fun RiskBadge(label: String, color: Color) {
+private fun StatChip(value: String, label: String, accent: Color) {
     Surface(
-        color    = color.copy(alpha = 0.12f),
-        shape    = RoundedCornerShape(6.dp)
+        color = accent.copy(alpha = 0.14f),
+        shape = RoundedCornerShape(6.dp)
     ) {
-        Text(
-            text     = label,
-            style    = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color    = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text  = value,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = accent
+            )
+            Text(
+                text  = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = accent.copy(alpha = 0.75f)
+            )
+        }
     }
 }

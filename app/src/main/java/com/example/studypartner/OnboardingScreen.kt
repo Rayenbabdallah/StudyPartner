@@ -27,34 +27,52 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import com.example.studypartner.ui.theme.SoftGold
+import com.example.studypartner.ui.theme.WarmAmber
 import kotlinx.coroutines.launch
 
 private data class OnboardingPage(
     val icon: ImageVector,
+    val eyebrow: String,
     val title: String,
-    val body: String
+    val body: String,
+    val accent: Color
 )
 
 private val pages = listOf(
     OnboardingPage(
-        icon  = Icons.Default.Star,
-        title = "Smart Priority",
-        body  = "Add your study tasks with difficulty and urgency ratings. StudyPartner automatically calculates a weighted score so you always know what to tackle first."
+        icon    = Icons.Default.Star,
+        eyebrow = "STEP ONE",
+        title   = "Smart\npriority.",
+        body    = "Difficulty + urgency + grade weight calculate a single score so you always know what to tackle first.",
+        accent  = DeepOrange
     ),
     OnboardingPage(
-        icon  = Icons.Default.AutoAwesome,
-        title = "AI-Powered Advice",
-        body  = "Get real-time study recommendations powered by a local AI model. The advice adapts to your task load, deadlines, and risk levels."
+        icon    = Icons.Default.AutoAwesome,
+        eyebrow = "STEP TWO",
+        title   = "AI-powered\nadvice.",
+        body    = "Get real-time study recommendations that adapt to your workload, deadlines, and risk levels.",
+        accent  = BookmarkGold
     ),
     OnboardingPage(
-        icon  = Icons.Default.DateRange,
-        title = "Deadline Tracking",
-        body  = "Set deadlines on any task and get notified before they slip. Overdue tasks rise to the top automatically — nothing falls through the cracks."
+        icon    = Icons.Default.DateRange,
+        eyebrow = "STEP THREE",
+        title   = "Deadlines\ntracked.",
+        body    = "Set deadlines on any task and get notified before they slip. Overdue tasks rise to the top automatically.",
+        accent  = OrangeCheck
     ),
     OnboardingPage(
-        icon  = Icons.Default.CheckCircle,
-        title = "You're All Set",
-        body  = "Add your first task, set its priority, and let StudyPartner guide your study sessions. Your grades will thank you."
+        icon    = Icons.Default.CheckCircle,
+        eyebrow = "READY",
+        title   = "You're all\nset.",
+        body    = "Add your first task, set its priority, and let StudyPartner guide your sessions. Your grades will thank you.",
+        accent  = LimeCheck
     )
 )
 
@@ -66,9 +84,10 @@ fun OnboardingScreen(navController: NavController) {
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val isLast     = pagerState.currentPage == pages.size - 1
 
+    val currentAccent = pages[pagerState.currentPage].accent
     val bgGradient = Brush.verticalGradient(
         listOf(
-            MaterialTheme.colorScheme.primaryContainer,
+            currentAccent.copy(alpha = 0.15f),
             MaterialTheme.colorScheme.background
         )
     )
@@ -109,7 +128,7 @@ fun OnboardingScreen(navController: NavController) {
                             .width(width)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
+                                if (isSelected) currentAccent
                                 else MaterialTheme.colorScheme.outlineVariant
                             )
                     )
@@ -134,12 +153,17 @@ fun OnboardingScreen(navController: NavController) {
                 },
                 modifier       = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape          = RoundedCornerShape(14.dp)
+                    .height(56.dp),
+                shape          = RoundedCornerShape(16.dp),
+                colors         = ButtonDefaults.buttonColors(
+                    containerColor = DeepOrange,
+                    contentColor   = Color.White
+                )
             ) {
                 Text(
-                    text  = if (isLast) "Get Started" else "Next",
-                    style = MaterialTheme.typography.labelLarge
+                    text  = if (isLast) "Get started" else "Continue",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -171,47 +195,53 @@ private fun PageContent(page: OnboardingPage) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Center
     ) {
-        // Icon circle
-        Surface(
-            shape    = CircleShape,
-            color    = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(128.dp),
-            tonalElevation = 8.dp
+        // Bookmark-style icon block
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(page.accent),
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector        = page.icon,
-                    contentDescription = null,
-                    modifier           = Modifier.size(60.dp),
-                    tint               = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+            Icon(
+                imageVector        = page.icon,
+                contentDescription = null,
+                modifier           = Modifier.size(48.dp),
+                tint               = Color.White
+            )
         }
 
-        Spacer(Modifier.height(56.dp))
+        Spacer(Modifier.height(32.dp))
+
+        Text(
+            text       = page.eyebrow,
+            style      = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color      = page.accent
+        )
+
+        Spacer(Modifier.height(8.dp))
 
         Text(
             text       = page.title,
-            style      = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign  = TextAlign.Center,
+            fontSize   = 56.sp,
+            lineHeight = 60.sp,
+            fontWeight = FontWeight.ExtraBold,
             color      = MaterialTheme.colorScheme.onBackground
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
         Text(
-            text      = page.body,
-            style     = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color     = MaterialTheme.colorScheme.onSurfaceVariant
+            text  = page.body,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // Reserve space for the bottom controls
-        Spacer(Modifier.height(200.dp))
+        Spacer(Modifier.height(180.dp))
     }
 }

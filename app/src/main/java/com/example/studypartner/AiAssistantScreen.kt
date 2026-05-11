@@ -5,11 +5,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -20,23 +24,35 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import com.example.studypartner.ui.theme.SoftGold
+import com.example.studypartner.ui.theme.WarmAmber
 
-private data class QuickPrompt(val display: String, val question: String)
+private data class QuickPrompt(val display: String, val question: String, val accent: Color)
 
 private val QUICK_PROMPTS = listOf(
-    QuickPrompt("What should I do now?",   "What is the single most important task I should work on right now and why?"),
-    QuickPrompt("Plan my next 3 days",     "Create a realistic 3-day study plan based on my current tasks and deadlines."),
-    QuickPrompt("Why is my top task risky?","Explain clearly why my highest-priority task is risky and what I should do about it."),
-    QuickPrompt("Break top task down",     "Break my highest-priority task into 5 concrete, actionable subtasks I can do one by one."),
-    QuickPrompt("I'm overwhelmed",         "I'm feeling overwhelmed by my workload. Calm me down and give me ONE concrete next step."),
-    QuickPrompt("Best use of 1 hour",      "If I only have 1 hour to study right now, what should I focus on and how should I split that time?")
+    QuickPrompt("What should I do now?",        "What is the single most important task I should work on right now and why?", DeepOrange),
+    QuickPrompt("Plan my next 3 days",          "Create a realistic 3-day study plan based on my current tasks and deadlines.", BookmarkGold),
+    QuickPrompt("Why is my top task risky?",    "Explain clearly why my highest-priority task is risky and what I should do about it.", OrangeCheck),
+    QuickPrompt("Break top task down",          "Break my highest-priority task into 5 concrete, actionable subtasks I can do one by one.", LimeCheck),
+    QuickPrompt("I'm overwhelmed",              "I'm feeling overwhelmed by my workload. Calm me down and give me ONE concrete next step.", WarmAmber),
+    QuickPrompt("Best use of 1 hour",           "If I only have 1 hour to study right now, what should I focus on and how should I split that time?", SoftGold),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,30 +64,26 @@ fun AiAssistantScreen(
 ) {
 
     val assistantState by viewModel.assistantState.collectAsState()
-    var customQuestion  by remember { mutableStateOf("") }
-    var lastQuestion    by remember { mutableStateOf("") }
+    var customQuestion  by rememberSaveable { mutableStateOf("") }
+    var lastQuestion    by rememberSaveable { mutableStateOf("") }
     val isLoading       = assistantState is AiState.Loading
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color    = MaterialTheme.colorScheme.primaryContainer,
-                            shape    = CircleShape,
-                            modifier = Modifier.size(32.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(BookmarkGold),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Default.AutoAwesome, contentDescription = null,
-                                    tint     = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFF3D2400), modifier = Modifier.size(16.dp))
                         }
-                        Spacer(Modifier.width(10.dp))
-                        Text("AI Assistant")
+                        Text("AI Assistant", fontWeight = FontWeight.SemiBold)
                     }
                 },
                 navigationIcon = {
@@ -91,7 +103,7 @@ fun AiAssistantScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
@@ -104,99 +116,91 @@ fun AiAssistantScreen(
                 .padding(bottom = outerPadding.calculateBottomPadding())
                 .fillMaxSize()
         ) {
-            // ── Scrollable body ───────────────────────────────────────────────
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = Dimens.ScreenPadding),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.AiPrompts.route) },
-                        label = { Text("Prompts") }
+                Spacer(Modifier.height(Dimens.SpaceXs))
+
+                // Hero
+                Column {
+                    Text(
+                        "ASK YOUR AI",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold
                     )
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.AiGeneratedPlan.route) },
-                        label = { Text("Plan") }
-                    )
-                    AssistChip(
-                        onClick = { navController.navigate(Screen.RecoveryPlan.route) },
-                        label = { Text("Recovery") }
+                    Spacer(Modifier.height(Dimens.SpaceXs))
+                    Text(
+                        text       = "What's on\nyour mind?",
+                        fontSize   = 38.sp,
+                        lineHeight = 42.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                // ── Response area ─────────────────────────────────────────────
+                // Tab pills (Prompts / Plan / Recovery)
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)) {
+                    NavPill(label = "Prompts",  accent = DeepOrange,    onClick = { navController.navigate(Screen.AiPrompts.route) })
+                    NavPill(label = "Plan",     accent = LimeCheck,     onClick = { navController.navigate(Screen.AiGeneratedPlan.route) })
+                    NavPill(label = "Recovery", accent = MaterialTheme.colorScheme.error, onClick = { navController.navigate(Screen.RecoveryPlan.route) })
+                }
+
+                // Response area
                 AnimatedContent(
                     targetState   = assistantState,
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label         = "assistantState"
                 ) { state ->
                     when (state) {
-                        is AiState.Idle -> IdlePlaceholder()
+                        is AiState.Idle -> IdleHero()
 
-                        is AiState.Loading -> Card(
+                        is AiState.Loading -> Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            colors   = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                            shape    = RoundedCornerShape(20.dp)
+                            color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            shape    = RoundedCornerShape(20.dp),
+                            border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Column(
-                                modifier = Modifier.padding(20.dp),
+                                modifier = Modifier.padding(Dimens.CardPadding),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text(
-                                    "Q: $lastQuestion",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                ShimmerBox(Modifier.fillMaxWidth(0.95f), height = 16.dp)
-                                ShimmerBox(Modifier.fillMaxWidth(0.80f), height = 16.dp)
-                                ShimmerBox(Modifier.fillMaxWidth(0.90f), height = 16.dp)
-                                ShimmerBox(Modifier.fillMaxWidth(0.65f), height = 16.dp)
+                                QuestionLine(lastQuestion)
+                                Spacer(Modifier.height(4.dp))
+                                ShimmerBox(Modifier.fillMaxWidth(0.95f), height = 14.dp)
+                                ShimmerBox(Modifier.fillMaxWidth(0.80f), height = 14.dp)
+                                ShimmerBox(Modifier.fillMaxWidth(0.90f), height = 14.dp)
+                                ShimmerBox(Modifier.fillMaxWidth(0.65f), height = 14.dp)
                             }
                         }
 
-                        is AiState.Success -> ResponseCard(
-                            question = lastQuestion,
-                            response = state.response
-                        )
-
-                        is AiState.Failure -> ResponseCard(
-                            question        = lastQuestion,
-                            response        = viewModel.getLocalAssistantResponse(lastQuestion),
-                            isLocalFallback = true,
-                            errorDetail     = state.message
-                        )
-
-                        is AiState.Unavailable -> ResponseCard(
-                            question        = lastQuestion,
-                            response        = viewModel.getLocalAssistantResponse(lastQuestion),
-                            isLocalFallback = true
-                        )
+                        is AiState.Success    -> ResponseCard(question = lastQuestion, response = state.response)
+                        is AiState.Failure    -> ResponseCard(question = lastQuestion, response = viewModel.getLocalAssistantResponse(lastQuestion), isLocalFallback = true, errorDetail = state.message)
+                        is AiState.Unavailable -> ResponseCard(question = lastQuestion, response = viewModel.getLocalAssistantResponse(lastQuestion), isLocalFallback = true)
                     }
                 }
 
-                // ── Quick prompts ─────────────────────────────────────────────
+                // Quick prompts
                 Text(
-                    "Quick Prompts",
-                    style      = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSurfaceVariant
+                    "QUICK PROMPTS",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMd)
                 ) {
                     QUICK_PROMPTS.forEach { prompt ->
-                        PromptChipCard(
+                        PromptCard(
                             label   = prompt.display,
+                            accent  = prompt.accent,
                             enabled = !isLoading,
                             onClick = {
                                 lastQuestion = prompt.question
@@ -205,61 +209,66 @@ fun AiAssistantScreen(
                         )
                     }
                 }
+
+                Spacer(Modifier.height(Dimens.SpaceMd))
             }
 
-            // ── Pinned input bar ──────────────────────────────────────────────
+            // Pinned input bar
             Surface(
-                tonalElevation = 6.dp,
-                color          = MaterialTheme.colorScheme.surface
+                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                tonalElevation = 0.dp,
+                shadowElevation = 4.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
                         .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = Dimens.ScreenPadding, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
                 ) {
-                    OutlinedTextField(
-                        value         = customQuestion,
-                        onValueChange = { customQuestion = it },
-                        placeholder   = { Text("Ask anything about your tasks…") },
-                        singleLine    = true,
-                        modifier      = Modifier.weight(1f),
-                        shape         = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = {
+                    PaperInput(
+                        value = customQuestion,
+                        onChange = { customQuestion = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = "Ask anything…",
+                        onSubmit = {
                             if (customQuestion.isNotBlank() && !isLoading) {
                                 lastQuestion = customQuestion
                                 viewModel.fetchAssistantResponse(customQuestion)
                                 customQuestion = ""
                             }
-                        }),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                        )
+                        }
                     )
-                    FilledIconButton(
-                        onClick  = {
-                            if (customQuestion.isNotBlank() && !isLoading) {
+                    Surface(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clickable(enabled = customQuestion.isNotBlank() && !isLoading) {
                                 lastQuestion = customQuestion
                                 viewModel.fetchAssistantResponse(customQuestion)
                                 customQuestion = ""
-                            }
-                        },
-                        enabled  = customQuestion.isNotBlank() && !isLoading,
-                        modifier = Modifier.size(48.dp)
+                            },
+                        color = if (customQuestion.isNotBlank() && !isLoading) DeepOrange
+                                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = CircleShape
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier    = Modifier.size(20.dp),
-                                strokeWidth = 2.dp,
-                                color       = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "Send",
+                                    tint = if (customQuestion.isNotBlank()) Color.White
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -268,68 +277,106 @@ fun AiAssistantScreen(
     }
 }
 
+// ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
 @Composable
-private fun PromptChipCard(label: String, enabled: Boolean, onClick: () -> Unit) {
-    ElevatedCard(
-        onClick   = onClick,
-        enabled   = enabled,
-        shape     = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
-        modifier  = Modifier.width(160.dp)
+private fun NavPill(label: String, accent: Color, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainer,
+        shape    = RoundedCornerShape(50)
     ) {
-        Text(
-            text     = label,
-            style    = MaterialTheme.typography.labelMedium,
-            color    = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            maxLines = 3
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(accent))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
 @Composable
-private fun IdlePlaceholder() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors   = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer),
-        shape    = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+private fun PromptCard(label: String, accent: Color, enabled: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .width(170.dp)
+            .height(96.dp)
+            .clickable(enabled = enabled) { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(16.dp),
+        border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 12.dp)
+                    .width(8.dp)
+                    .height(18.dp)
+                    .background(accent, shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp))
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Icon(
-                    Icons.Default.AutoAwesome, contentDescription = null,
-                    tint     = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(Modifier.width(10.dp))
                 Text(
-                    "Your AI Study Assistant",
-                    style      = MaterialTheme.typography.titleSmall,
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 3
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IdleHero() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color    = MaterialTheme.colorScheme.primaryContainer,
+        shape    = RoundedCornerShape(24.dp)
+    ) {
+        Column(modifier = Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(DeepOrange))
+                Text(
+                    "STUDIO ASSISTANT",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
             Text(
-                "Ask me anything about your tasks — what to prioritise, " +
-                "how to plan your week, why a task is risky, or how to break it into steps.",
-                style = MaterialTheme.typography.bodyMedium,
+                "Ask anything about your tasks — what to prioritise, plan your week, why a task is risky, or how to break it down.",
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Surface(
-                color    = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                shape    = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    "Powered by OpenRouter · Falls back to local rules when offline",
-                    style    = MaterialTheme.typography.labelSmall,
-                    color    = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    "OpenRouter · falls back to local rules when offline",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
         }
@@ -338,58 +385,95 @@ private fun IdlePlaceholder() {
 
 @Composable
 private fun ResponseCard(
-    question: String, 
-    response: String, 
+    question: String,
+    response: String,
     isLocalFallback: Boolean = false,
     errorDetail: String? = null
 ) {
-    Card(
-        modifier  = Modifier.fillMaxWidth(),
-        colors    = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        shape     = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(20.dp),
+        border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.AutoAwesome, contentDescription = null,
-                    tint     = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "Q: $question",
-                    style      = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color      = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.65f),
-                    maxLines   = 2
-                )
-            }
-            Spacer(Modifier.height(10.dp))
+        Column(modifier = Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuestionLine(question)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Text(
                 text  = response,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (isLocalFallback) {
                 Surface(
-                    color    = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.08f),
-                    shape    = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                        Text(
-                            "OpenRouter error: ${errorDetail ?: "Service unreachable"} · showing local response",
-                            style    = MaterialTheme.typography.labelSmall,
-                            color    = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.55f)
-                        )
-                    }
+                    Text(
+                        "OpenRouter ${if (errorDetail != null) "error: $errorDetail" else "unreachable"} · showing local response",
+                        style    = MaterialTheme.typography.labelSmall,
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuestionLine(question: String) {
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(BookmarkGold),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Q", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold, color = Color(0xFF3D2400))
+        }
+        Text(
+            text = question.ifBlank { "—" },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 3
+        )
+    }
+}
+
+@Composable
+private fun PaperInput(
+    value: String,
+    onChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String,
+    onSubmit: () -> Unit
+) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            if (value.isEmpty()) {
+                Text(
+                    placeholder,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onChange,
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp),
+                cursorBrush = SolidColor(DeepOrange),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { onSubmit() }),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

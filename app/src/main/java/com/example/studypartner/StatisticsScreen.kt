@@ -14,11 +14,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import com.example.studypartner.ui.theme.BookmarkGold
+import com.example.studypartner.ui.theme.DeepOrange
+import com.example.studypartner.ui.theme.Dimens
+import com.example.studypartner.ui.theme.LimeCheck
+import com.example.studypartner.ui.theme.OrangeCheck
+import com.example.studypartner.ui.theme.WarmAmber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +45,15 @@ fun StatisticsScreen(
     val panicCount by UserPreferences.panicModeCount(context).collectAsState(initial = 0)
 
     val total        = tasks.size
-    val completed    = tasks.count { it.isCompleted }
+    val completed    = remember(tasks) { tasks.count { it.isCompleted } }
     val active       = total - completed
-    val atRisk       = tasks.count { it.isHighRisk() && !it.isCompleted }
+    val atRisk       = remember(tasks) { tasks.count { it.isHighRisk() && !it.isCompleted } }
     val rate         = if (total > 0) completed.toFloat() / total else 0f
-    val avgProgress  = if (tasks.isNotEmpty()) tasks.map { it.progress }.average().toInt() else 0
+    val avgProgress  = remember(tasks) { if (tasks.isNotEmpty()) tasks.map { it.progress }.average().toInt() else 0 }
 
-    val breakdown    = viewModel.subjectBreakdown()
-    val maxScore     = breakdown.values.maxOrNull() ?: 1.0
-    val sessionMin   = viewModel.recommendedSession()
+    val breakdown    = remember(tasks) { viewModel.subjectBreakdown() }
+    val maxScore     = remember(breakdown) { breakdown.values.maxOrNull() ?: 1.0 }
+    val sessionMin   = remember(tasks) { viewModel.recommendedSession() }
 
     var animate by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animate = true }
@@ -58,16 +70,18 @@ fun StatisticsScreen(
     val highColors = riskColorSet("High Risk")
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { },
+                title = { Text("Analytics", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor    = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
@@ -80,62 +94,75 @@ fun StatisticsScreen(
                 .padding(bottom = outerPadding.calculateBottomPadding())
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Dimens.ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
         ) {
 
-            // ── Editorial header ──────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "PERFORMANCE ANALYTICS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    "Study Time\nDistribution.",
-                    style     = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color     = MaterialTheme.colorScheme.onSurface
-                )
+            // ── HERO with completion ring ─────────────────────────────────────
+            Row(
+                modifier = Modifier.padding(top = Dimens.SpaceSm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceLg)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "PERFORMANCE",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(Dimens.SpaceXs))
+                    Text(
+                        text       = "${(animatedRate * 100).toInt()}%",
+                        fontSize   = 64.sp,
+                        lineHeight = 68.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "$completed of $total tasks done",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                RingProgress(
+                    progress    = animatedRate,
+                    size        = 96.dp,
+                    strokeWidth = 10.dp,
+                    color       = LimeCheck,
+                    trackColor  = MaterialTheme.colorScheme.surfaceContainerHighest
+                ) {
+                    Text(
+                        "$active",
+                        fontSize   = 22.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color      = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
-                AssistChip(
-                    onClick = { navController.navigate(Screen.StudyTimeAnalytics.route) },
-                    label = { Text("Study Time") }
-                )
-                AssistChip(
-                    onClick = { navController.navigate(Screen.TaskCompletionStats.route) },
-                    label = { Text("Task Stats") }
-                )
-                AssistChip(
-                    onClick = { navController.navigate(Screen.CoursePerformance.route) },
-                    label = { Text("Course Perf") }
-                )
-                AssistChip(
-                    onClick = { navController.navigate(Screen.WeeklyReview.route) },
-                    label = { Text("Weekly Review") }
-                )
+                StatNavPill("Study Time",      DeepOrange) { navController.navigate(Screen.StudyTimeAnalytics.route) }
+                StatNavPill("Task Stats",      BookmarkGold) { navController.navigate(Screen.TaskCompletionStats.route) }
+                StatNavPill("Course Perf",     LimeCheck) { navController.navigate(Screen.CoursePerformance.route) }
+                StatNavPill("Weekly",          OrangeCheck) { navController.navigate(Screen.WeeklyReview.route) }
             }
 
             // ── Overview tiles ────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSm)
             ) {
-                MiniStatCard("Total",    total.toString(),  Modifier.weight(1f))
-                MiniStatCard("Active",   active.toString(), Modifier.weight(1f),
-                    valueColor = MaterialTheme.colorScheme.primary)
-                MiniStatCard("Done",     completed.toString(), Modifier.weight(1f),
-                    valueColor = safeColors.text)
-                MiniStatCard("Progress", "$avgProgress%",  Modifier.weight(1f),
-                    valueColor = if (avgProgress >= 70) safeColors.text
-                                 else MaterialTheme.colorScheme.primary)
+                MiniStatCard("Total",    total.toString(),     Modifier.weight(1f), valueColor = MaterialTheme.colorScheme.onSurface)
+                MiniStatCard("Active",   active.toString(),    Modifier.weight(1f), valueColor = DeepOrange)
+                MiniStatCard("Done",     completed.toString(), Modifier.weight(1f), valueColor = LimeCheck)
+                MiniStatCard("Progress", "$avgProgress%",      Modifier.weight(1f),
+                    valueColor = if (avgProgress >= 70) LimeCheck else OrangeCheck)
             }
 
             // ── Panic count badge ─────────────────────────────────────────────
@@ -264,18 +291,17 @@ private fun StatSection(title: String, content: @Composable () -> Unit) {
         Text(
             text  = title.uppercase(),
             style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(Dimens.SpaceSm))
         Surface(
-            modifier  = Modifier.fillMaxWidth(),
-            shape     = RoundedCornerShape(16.dp),
-            color     = MaterialTheme.colorScheme.surfaceContainerLow,
-            tonalElevation = 0.dp
+            modifier = Modifier.fillMaxWidth(),
+            shape    = RoundedCornerShape(20.dp),
+            color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+            border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                content()
-            }
+            Column(modifier = Modifier.padding(Dimens.CardPadding)) { content() }
         }
     }
 }
@@ -287,27 +313,52 @@ private fun MiniStatCard(
     modifier: Modifier = Modifier,
     valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    ElevatedCard(
-        modifier  = modifier,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        shape     = RoundedCornerShape(14.dp)
+    Surface(
+        modifier = modifier,
+        color    = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape    = RoundedCornerShape(14.dp),
+        border   = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text       = value,
-                style      = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
                 color      = valueColor
             )
             Text(
-                text  = label,
+                text  = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatNavPill(label: String, accent: Color, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        color    = MaterialTheme.colorScheme.surfaceContainer,
+        shape    = RoundedCornerShape(50)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(accent))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

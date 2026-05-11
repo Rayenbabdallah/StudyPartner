@@ -14,11 +14,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
+import com.example.studypartner.ui.theme.DeepOrange
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,9 +30,9 @@ import java.util.*
 fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
 
     val courses       by viewModel.allCourses.collectAsState()
-    var showTitleError by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var courseExpanded by remember { mutableStateOf(false) }
+    var showTitleError by rememberSaveable { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var courseExpanded by rememberSaveable { mutableStateOf(false) }
     var isSaving       by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -56,14 +59,14 @@ fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Task") },
+                title = { Text("New task", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor    = MaterialTheme.colorScheme.surface,
+                    containerColor    = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
@@ -201,20 +204,24 @@ fun AddTaskScreen(navController: NavController, viewModel: StudyViewModel) {
                 },
                 modifier       = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape          = RoundedCornerShape(14.dp),
-                enabled        = !isSaving
+                    .height(56.dp),
+                shape          = RoundedCornerShape(16.dp),
+                enabled        = !isSaving,
+                colors         = ButtonDefaults.buttonColors(
+                    containerColor = DeepOrange,
+                    contentColor   = Color.White
+                )
             ) {
                 if (isSaving) {
                     CircularProgressIndicator(
                         modifier    = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color       = MaterialTheme.colorScheme.onPrimary
+                        color       = Color.White
                     )
                 } else {
                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Save Task", style = MaterialTheme.typography.labelLarge)
+                    Text("Save task", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
             }
 
